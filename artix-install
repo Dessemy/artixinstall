@@ -97,7 +97,7 @@ basestrap /mnt base base-devel elogind-runit \
     linux-zen linux-firmware linux-zen-headers \
     grub efibootmgr \
     iwd \
-    neovin git sudo
+    neovim git sudo
 
 # fstab
 info "Generating fstab ..."
