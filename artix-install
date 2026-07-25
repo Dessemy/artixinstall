@@ -51,16 +51,18 @@ else
 fi
 
 wipefs -af "$DISK"
-sgdisk -Z "$DISK"
+parted -s "$DISK" mklabel gpt
 
 if [ "$BOOT_MODE" = "uefi" ]; then
-    sgdisk -n1:0:+"${EFI_SIZE}"MiB -t1:ef00 -c1:"EFI" "$DISK"
-    sgdisk -n2:0:0        -t2:8300 -c2:"ROOT" "$DISK"
+    parted -s "$DISK" mkpart EFI fat32 1MiB "${EFI_SIZE}MiB"
+    parted -s "$DISK" set 1 esp on
+    parted -s "$DISK" mkpart ROOT ext4 "${EFI_SIZE}MiB" 100%
     EFI_PART="${PART_PREFIX}1"
     ROOT_PART="${PART_PREFIX}2"
 else
-    sgdisk -n1:0:+1MiB    -t1:ef02 -c1:"BIOSBOOT" "$DISK"
-    sgdisk -n2:0:0        -t2:8300 -c2:"ROOT" "$DISK"
+    parted -s "$DISK" mkpart BIOSBOOT 1MiB 2MiB
+    parted -s "$DISK" set 1 bios_grub on
+    parted -s "$DISK" mkpart ROOT ext4 2MiB 100%
     ROOT_PART="${PART_PREFIX}2"
 fi
 
