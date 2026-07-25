@@ -1,5 +1,4 @@
 #!/bin/bash
-# Artix Linux installer: runit + iwd + ext4 + grub
 
 set -e
 
@@ -9,6 +8,12 @@ warn()  { echo -e "${YELLOW}[WARN]${NC} $1"; }
 error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 
 [ "$(id -u)" -eq 0 ] || error "Run as root."
+
+# ensure partitioning tool is available
+if ! command -v parted >/dev/null 2>&1; then
+    info "parted not found, installing ..."
+    pacman -Sy --noconfirm parted || error "Failed to install parted. Check your internet connection."
+fi
 
 # boot mode
 if [ -d /sys/firmware/efi/efivars ]; then
@@ -88,11 +93,11 @@ fi
 
 # base install
 info "Running basestrap ..."
-basestrap /mnt base base-devel runit elogind-runit \
+basestrap /mnt base base-devel elogind-runit \
     linux-zen linux-firmware linux-zen-headers \
     grub efibootmgr \
-    iwd dhcpcd \
-    nano vim sudo networkmanager-runit
+    iwd \
+    neovin git sudo
 
 # fstab
 info "Generating fstab ..."
@@ -124,8 +129,13 @@ useradd -m -G wheel -s /bin/bash "${USERNAME}"
 echo "${USERNAME}:changeme" | chpasswd
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
 
+mkdir -p /etc/iwd
+cat >> /etc/iwd/main.conf <<IWD
+[General]
+EnableNetworkConfiguration=true
+IWD
+
 ln -sf /etc/runit/sv/iwd /etc/runit/runsvdir/current/ 2>/dev/null || true
-ln -sf /etc/runit/sv/dhcpcd /etc/runit/runsvdir/current/ 2>/dev/null || true
 
 if [ -d /sys/firmware/efi/efivars ]; then
     grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=Artix
