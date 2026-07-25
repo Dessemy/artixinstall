@@ -69,7 +69,18 @@ else
     PART_PREFIX="${DISK}"
 fi
 
+# cleanup leftovers from a previous run so the disk isn't "busy"
+info "Cleaning up any leftovers from a previous attempt ..."
+swapoff -a 2>/dev/null || true
+umount -R /mnt 2>/dev/null || true
+for part in "${PART_PREFIX}"*; do
+    [ -b "$part" ] && umount -f "$part" 2>/dev/null || true
+done
+
 wipefs -af "$DISK"
+partprobe "$DISK" 2>/dev/null || true
+sleep 1
+
 parted -s "$DISK" mklabel gpt
 
 if [ "$BOOT_MODE" = "uefi" ]; then
@@ -85,7 +96,13 @@ else
     ROOT_PART="${PART_PREFIX}2"
 fi
 
-partprobe "$DISK"
+# retry informing the kernel of the new partition table, it can be
+# briefly "busy" right after wipefs/umount on repeated runs
+for i in 1 2 3 4 5; do
+    partprobe "$DISK" 2>/dev/null && break
+    sleep 2
+done
+udevadm settle 2>/dev/null || true
 sleep 2
 
 # format
@@ -105,13 +122,24 @@ if [ "$BOOT_MODE" = "uefi" ]; then
     mount "$EFI_PART" /mnt/boot/efi
 fi
 
-# base install
+# speed up / harden pacman against slow mirrors
+sed -i 's/^#ParallelDownloads.*/ParallelDownloads = 5/' /etc/pacman.conf 2>/dev/null || true
+pacman -Syy --noconfirm || true
+
+# base install (retry a few times, mirrors can be flaky/slow)
 info "Running basestrap ..."
-basestrap /mnt base base-devel runit elogind-runit \
-    linux-zen linux-firmware linux-zen-headers \
-    grub efibootmgr \
-    iwd git \
-    neovim sudo
+BASESTRAP_PKGS="base base-devel elogind-runit linux-zen linux-firmware linux-zen-headers grub efibootmgr iwd neovim git sudo"
+BASESTRAP_OK=0
+for i in 1 2 3; do
+    if basestrap /mnt $BASESTRAP_PKGS; then
+        BASESTRAP_OK=1
+        break
+    fi
+    warn "basestrap attempt $i failed, retrying with a fresh mirror sync ..."
+    pacman -Syy --noconfirm || true
+    sleep 3
+done
+[ "$BASESTRAP_OK" -eq 1 ] || error "basestrap failed after multiple attempts. Try a different mirror or check your connection."
 
 # fstab
 info "Generating fstab ..."
@@ -165,7 +193,7 @@ rm /mnt/root/chroot-setup.sh
 
 info "Installation complete!"
 echo
-echo "For Wi-Fi after reboot, use: iwctl"
+echo "For Wi-Fi after reboot, use: iwctl (iwd is already running via runit)"
 echo
 info "Unmounting and rebooting in 5 seconds ... (Ctrl+C to cancel)"
 sleep 5
