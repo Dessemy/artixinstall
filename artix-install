@@ -1,0 +1,148 @@
+#!/bin/bash
+# Artix Linux installer: runit + iwd + ext4 + grub
+
+set -e
+
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
+info()  { echo -e "${GREEN}[INFO]${NC} $1"; }
+warn()  { echo -e "${YELLOW}[WARN]${NC} $1"; }
+error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
+
+[ "$(id -u)" -eq 0 ] || error "Run as root."
+
+# boot mode
+if [ -d /sys/firmware/efi/efivars ]; then
+    BOOT_MODE="uefi"
+else
+    BOOT_MODE="bios"
+fi
+info "Boot mode: $BOOT_MODE"
+
+# input
+echo
+lsblk -d -o NAME,SIZE,MODEL
+echo
+read -rp "Target disk (e.g. /dev/sda or /dev/nvme0n1): " DISK
+[ -b "$DISK" ] || error "Disk $DISK not found."
+
+read -rp "Hostname [artix]: " HOSTNAME
+HOSTNAME=${HOSTNAME:-artix}
+
+read -rp "New username [user]: " USERNAME
+USERNAME=${USERNAME:-user}
+
+read -rp "Timezone [Asia/Jakarta]: " TIMEZONE
+TIMEZONE=${TIMEZONE:-Asia/Jakarta}
+
+read -rp "EFI partition size in MiB [512]: " EFI_SIZE
+EFI_SIZE=${EFI_SIZE:-512}
+
+echo
+warn "ALL DATA on $DISK will be ERASED!"
+read -rp "Type 'YES' to continue: " CONFIRM
+[ "$CONFIRM" = "YES" ] || error "Aborted."
+
+# partitioning
+info "Partitioning $DISK ..."
+if [[ "$DISK" == *"nvme"* || "$DISK" == *"mmcblk"* ]]; then
+    PART_PREFIX="${DISK}p"
+else
+    PART_PREFIX="${DISK}"
+fi
+
+wipefs -af "$DISK"
+sgdisk -Z "$DISK"
+
+if [ "$BOOT_MODE" = "uefi" ]; then
+    sgdisk -n1:0:+"${EFI_SIZE}"MiB -t1:ef00 -c1:"EFI" "$DISK"
+    sgdisk -n2:0:0        -t2:8300 -c2:"ROOT" "$DISK"
+    EFI_PART="${PART_PREFIX}1"
+    ROOT_PART="${PART_PREFIX}2"
+else
+    sgdisk -n1:0:+1MiB    -t1:ef02 -c1:"BIOSBOOT" "$DISK"
+    sgdisk -n2:0:0        -t2:8300 -c2:"ROOT" "$DISK"
+    ROOT_PART="${PART_PREFIX}2"
+fi
+
+partprobe "$DISK"
+sleep 2
+
+# format
+info "Formatting root as ext4 ..."
+mkfs.ext4 -F "$ROOT_PART"
+
+if [ "$BOOT_MODE" = "uefi" ]; then
+    info "Formatting EFI as FAT32 ..."
+    mkfs.fat -F32 "$EFI_PART"
+fi
+
+# mount
+info "Mounting ..."
+mount "$ROOT_PART" /mnt
+if [ "$BOOT_MODE" = "uefi" ]; then
+    mkdir -p /mnt/boot/efi
+    mount "$EFI_PART" /mnt/boot/efi
+fi
+
+# base install
+info "Running basestrap ..."
+basestrap /mnt base base-devel runit elogind-runit \
+    linux-zen linux-firmware linux-zen-headers \
+    grub efibootmgr \
+    iwd dhcpcd \
+    nano vim sudo networkmanager-runit
+
+# fstab
+info "Generating fstab ..."
+fstabgen -U /mnt >> /mnt/etc/fstab
+
+# chroot config
+info "Configuring system ..."
+cat > /mnt/root/chroot-setup.sh <<EOF
+#!/bin/bash
+set -e
+
+echo "root:changeme" | chpasswd
+
+ln -sf /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
+hwclock --systohc
+
+sed -i 's/#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
+locale-gen
+echo "LANG=en_US.UTF-8" > /etc/locale.conf
+
+echo "${HOSTNAME}" > /etc/hostname
+cat >> /etc/hosts <<HOSTS
+127.0.0.1   localhost
+::1         localhost
+127.0.1.1   ${HOSTNAME}.localdomain ${HOSTNAME}
+HOSTS
+
+useradd -m -G wheel -s /bin/bash "${USERNAME}"
+echo "${USERNAME}:changeme" | chpasswd
+sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
+
+ln -sf /etc/runit/sv/iwd /etc/runit/runsvdir/current/ 2>/dev/null || true
+ln -sf /etc/runit/sv/dhcpcd /etc/runit/runsvdir/current/ 2>/dev/null || true
+
+if [ -d /sys/firmware/efi/efivars ]; then
+    grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=Artix
+else
+    grub-install --target=i386-pc ${DISK}
+fi
+grub-mkconfig -o /boot/grub/grub.cfg
+EOF
+
+chmod +x /mnt/root/chroot-setup.sh
+artix-chroot /mnt /root/chroot-setup.sh
+rm /mnt/root/chroot-setup.sh
+
+info "Installation complete!"
+echo
+echo "Next steps:"
+echo "  1. umount -R /mnt"
+echo "  2. reboot"
+echo "  3. Log in as root or ${USERNAME} (temp password: changeme)"
+echo "  4. Change password immediately with 'passwd'"
+echo "  5. For Wi-Fi, use: iwctl (iwd is already running via runit)"
+echo
