@@ -122,13 +122,21 @@ if [ "$BOOT_MODE" = "uefi" ]; then
     mount "$EFI_PART" /mnt/boot/efi
 fi
 
-# speed up
+# speed up / harden pacman against slow mirrors
 sed -i 's/^#ParallelDownloads.*/ParallelDownloads = 5/' /etc/pacman.conf 2>/dev/null || true
 pacman -Syy --noconfirm || true
 
-# base install (retry a few times, mirrors can be flaky)
+# base install (retry a few times, mirrors can be flaky/slow)
 info "Running basestrap ..."
-BASESTRAP_PKGS="base base-devel elogind-runit dbus-runit linux-zen linux-firmware linux-zen-headers grub efibootmgr iwd git neovim sudo"
+BASESTRAP_PKGS="base base-devel runit elogind-runit dbus-runit \
+    linux-zen linux-firmware linux-zen-headers \
+    grub efibootmgr ntfs-3g dosfstools e2fsprogs \
+    iwd iwd-runit iproute2 inetutils openssh openssh-runit \
+    pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber alsa-utils \
+    bluez bluez-utils bluez-runit \
+    git wget curl rsync unzip zip tar \
+    neovim sudo zsh \
+    htop tree less pciutils usbutils"
 BASESTRAP_OK=0
 for i in 1 2 3; do
     if basestrap /mnt $BASESTRAP_PKGS; then
@@ -167,9 +175,24 @@ cat >> /etc/hosts <<HOSTS
 127.0.1.1   ${HOSTNAME}.localdomain ${HOSTNAME}
 HOSTS
 
-useradd -m -G wheel -s /bin/bash "${USERNAME}"
+useradd -m -G wheel -s /bin/zsh "${USERNAME}"
 echo "${USERNAME}:${USER_PASS}" | chpasswd
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
+
+chsh -s /bin/zsh root
+
+cat > /etc/zsh/zshrc <<ZSHRC
+autoload -Uz compinit && compinit
+autoload -Uz colors && colors
+PROMPT="%F{green}%n@%m%f:%F{blue}%~%f%# "
+HISTFILE=~/.zsh_history
+HISTSIZE=5000
+SAVEHIST=5000
+setopt HIST_IGNORE_DUPS SHARE_HISTORY AUTO_CD
+ZSHRC
+cp /etc/zsh/zshrc /root/.zshrc
+cp /etc/zsh/zshrc /home/${USERNAME}/.zshrc
+chown ${USERNAME}:${USERNAME} /home/${USERNAME}/.zshrc
 
 mkdir -p /etc/iwd
 cat >> /etc/iwd/main.conf <<IWD
@@ -180,6 +203,30 @@ IWD
 mkdir -p /etc/runit/runsvdir/default
 ln -sf /etc/runit/sv/dbus /etc/runit/runsvdir/default/ 2>/dev/null || true
 ln -sf /etc/runit/sv/iwd /etc/runit/runsvdir/default/ 2>/dev/null || true
+ln -sf /etc/runit/sv/bluetoothd /etc/runit/runsvdir/default/ 2>/dev/null || true
+
+usermod -aG audio,video,lp "${USERNAME}"
+
+# GPU auto-detect and driver install
+GPU_INFO=\$(lspci -nnk | grep -Ei "VGA compatible controller|3D controller|Display controller")
+echo "Detected GPU(s):"
+echo "\$GPU_INFO"
+
+GPU_PKGS="mesa vulkan-icd-loader"
+echo "\$GPU_INFO" | grep -qi nvidia   && GPU_PKGS="\$GPU_PKGS nvidia-dkms nvidia-utils nvidia-settings opencl-nvidia"
+echo "\$GPU_INFO" | grep -qi intel    && GPU_PKGS="\$GPU_PKGS vulkan-intel intel-media-driver libva-intel-driver"
+echo "\$GPU_INFO" | grep -Eqi "amd|ati|radeon" && GPU_PKGS="\$GPU_PKGS xf86-video-amdgpu vulkan-radeon libva-mesa-driver mesa-vdpau"
+
+pacman -S --noconfirm \$GPU_PKGS || echo "WARNING: GPU driver install failed, install manually later."
+
+# build & install yay (AUR helper) as the new user, sudo temporarily passwordless for this step
+echo "%wheel ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/99-yay-temp
+chmod 440 /etc/sudoers.d/99-yay-temp
+
+su - "${USERNAME}" -c "cd ~ && git clone https://aur.archlinux.org/yay-bin.git && cd yay-bin && makepkg -si --noconfirm" \
+    || echo "WARNING: yay install failed, you can retry manually later."
+
+rm -f /etc/sudoers.d/99-yay-temp
 
 if [ -d /sys/firmware/efi/efivars ]; then
     grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=Artix
