@@ -110,8 +110,8 @@ info "Running basestrap ..."
 basestrap /mnt base base-devel runit elogind-runit \
     linux-zen linux-firmware linux-zen-headers \
     grub efibootmgr \
-    iwd \
-    nano vim sudo
+    iwd git \
+    neovim sudo
 
 # fstab
 info "Generating fstab ..."
