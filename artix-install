@@ -193,7 +193,7 @@ rm /mnt/root/chroot-setup.sh
 
 info "Installation complete!"
 echo
-echo "For Wi-Fi after reboot, use: iwctl (iwd is already running via runit)"
+echo "For Wi-Fi after reboot, use: iwctl"
 echo
 info "Unmounting and rebooting in 5 seconds ... (Ctrl+C to cancel)"
 sleep 5
