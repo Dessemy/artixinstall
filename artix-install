@@ -122,13 +122,13 @@ if [ "$BOOT_MODE" = "uefi" ]; then
     mount "$EFI_PART" /mnt/boot/efi
 fi
 
-# speed up / harden pacman against slow mirrors
+# speed up
 sed -i 's/^#ParallelDownloads.*/ParallelDownloads = 5/' /etc/pacman.conf 2>/dev/null || true
 pacman -Syy --noconfirm || true
 
-# base install (retry a few times, mirrors can be flaky/slow)
+# base install (retry a few times, mirrors can be flaky)
 info "Running basestrap ..."
-BASESTRAP_PKGS="base base-devel elogind-runit linux-zen linux-firmware linux-zen-headers grub efibootmgr iwd neovim git sudo"
+BASESTRAP_PKGS="base base-devel elogind-runit dbus-runit linux-zen linux-firmware linux-zen-headers grub efibootmgr iwd git neovim sudo"
 BASESTRAP_OK=0
 for i in 1 2 3; do
     if basestrap /mnt $BASESTRAP_PKGS; then
@@ -177,7 +177,9 @@ cat >> /etc/iwd/main.conf <<IWD
 EnableNetworkConfiguration=true
 IWD
 
-ln -sf /etc/runit/sv/iwd /etc/runit/runsvdir/current/ 2>/dev/null || true
+mkdir -p /etc/runit/runsvdir/default
+ln -sf /etc/runit/sv/dbus /etc/runit/runsvdir/default/ 2>/dev/null || true
+ln -sf /etc/runit/sv/iwd /etc/runit/runsvdir/default/ 2>/dev/null || true
 
 if [ -d /sys/firmware/efi/efivars ]; then
     grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=Artix
