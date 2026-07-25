@@ -36,6 +36,20 @@ HOSTNAME=${HOSTNAME:-artix}
 read -rp "New username [user]: " USERNAME
 USERNAME=${USERNAME:-user}
 
+while true; do
+    read -rsp "Root password: " ROOT_PASS; echo
+    read -rsp "Confirm root password: " ROOT_PASS2; echo
+    [ "$ROOT_PASS" = "$ROOT_PASS2" ] && [ -n "$ROOT_PASS" ] && break
+    warn "Passwords do not match or empty, try again."
+done
+
+while true; do
+    read -rsp "Password for ${USERNAME}: " USER_PASS; echo
+    read -rsp "Confirm password for ${USERNAME}: " USER_PASS2; echo
+    [ "$USER_PASS" = "$USER_PASS2" ] && [ -n "$USER_PASS" ] && break
+    warn "Passwords do not match or empty, try again."
+done
+
 read -rp "Timezone [Asia/Jakarta]: " TIMEZONE
 TIMEZONE=${TIMEZONE:-Asia/Jakarta}
 
@@ -93,11 +107,11 @@ fi
 
 # base install
 info "Running basestrap ..."
-basestrap /mnt base base-devel elogind-runit \
+basestrap /mnt base base-devel runit elogind-runit \
     linux-zen linux-firmware linux-zen-headers \
     grub efibootmgr \
     iwd \
-    neovim git sudo
+    nano vim sudo
 
 # fstab
 info "Generating fstab ..."
@@ -109,7 +123,7 @@ cat > /mnt/root/chroot-setup.sh <<EOF
 #!/bin/bash
 set -e
 
-echo "root:changeme" | chpasswd
+echo "root:${ROOT_PASS}" | chpasswd
 
 ln -sf /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
 hwclock --systohc
@@ -126,7 +140,7 @@ cat >> /etc/hosts <<HOSTS
 HOSTS
 
 useradd -m -G wheel -s /bin/bash "${USERNAME}"
-echo "${USERNAME}:changeme" | chpasswd
+echo "${USERNAME}:${USER_PASS}" | chpasswd
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
 
 mkdir -p /etc/iwd
@@ -151,10 +165,9 @@ rm /mnt/root/chroot-setup.sh
 
 info "Installation complete!"
 echo
-echo "Next steps:"
-echo "  1. umount -R /mnt"
-echo "  2. reboot"
-echo "  3. Log in as root or ${USERNAME} (temp password: changeme)"
-echo "  4. Change password immediately with 'passwd'"
-echo "  5. For Wi-Fi, use: iwctl (iwd is already running via runit)"
+echo "For Wi-Fi after reboot, use: iwctl"
 echo
+info "Unmounting and rebooting in 5 seconds ... (Ctrl+C to cancel)"
+sleep 5
+umount -R /mnt
+reboot
