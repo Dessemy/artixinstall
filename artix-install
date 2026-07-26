@@ -9,7 +9,7 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 
 [ "$(id -u)" -eq 0 ] || error "Run as root."
 
-# location of this dotfiles
+# location of this repo dotfiles
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_DIRS=(foot herdr mako mpd rmpc yazi nvim zsh)
 
@@ -198,16 +198,16 @@ sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
 pacman -S --noconfirm artix-archlinux-support
 pacman-key --populate archlinux
 
-reflector --country Indonesia,Singapore,Japan --age 12 --protocol https --completion-percent 100 --sort rate \
-    --save /etc/pacman.d/mirrorlist-arch \
-    || reflector --age 24 --protocol https --completion-percent 100 --latest 20 --sort rate --save /etc/pacman.d/mirrorlist-arch \
-    || curl -s "https://archlinux.org/mirrorlist/all/" | sed -e 's/^#Server/Server/' > /etc/pacman.d/mirrorlist-arch
+# Arch mirror
+cat > /etc/pacman.d/mirrorlist-arch <<'MIRRORLIST'
+Server = https://geo.mirror.pkgbuild.com/\$repo/os/\$arch
+MIRRORLIST
 
-# sanity check: make sure we actually got a non-empty mirrorlist with at least one Server line
-if ! grep -q '^Server' /etc/pacman.d/mirrorlist-arch 2>/dev/null; then
-    echo "WARNING: reflector produced an empty mirrorlist, falling back to raw list."
-    curl -s "https://archlinux.org/mirrorlist/all/" | sed -e 's/^#Server/Server/' > /etc/pacman.d/mirrorlist-arch
-fi
+reflector --country Indonesia,Singapore,Japan --age 12 --protocol https --completion-percent 100 --sort rate \
+    >> /etc/pacman.d/mirrorlist-arch 2>/dev/null \
+    || reflector --age 24 --protocol https --completion-percent 100 --latest 20 --sort rate \
+    >> /etc/pacman.d/mirrorlist-arch 2>/dev/null \
+    || true
 
 if ! grep -q '^\[extra\]' /etc/pacman.conf; then
 cat >> /etc/pacman.conf <<PACMANCONF
@@ -224,7 +224,7 @@ pacman -Syy --noconfirm || echo "WARNING: pacman sync had issues (extra/multilib
 
 chsh -s /bin/zsh root
 
-# install dotfiles staged from the repo (if any were found)
+# installing dotfiles
 mkdir -p /home/${USERNAME}/.config
 if [ -d /root/dotfiles-src ]; then
     for dir in /root/dotfiles-src/*/; do
@@ -253,7 +253,7 @@ cat >> /etc/iwd/main.conf <<IWD
 EnableNetworkConfiguration=true
 IWD
 
-# fallback DNS in case iwd hasn't written resolv.conf yet on first connect
+# fallback DNS
 rm -f /etc/resolv.conf 2>/dev/null || true
 cat > /etc/resolv.conf <<RESOLV
 nameserver 1.1.1.1
@@ -274,26 +274,28 @@ echo "\$GPU_INFO"
 GPU_PKGS="mesa vulkan-icd-loader"
 echo "\$GPU_INFO" | grep -qi nvidia   && GPU_PKGS="\$GPU_PKGS nvidia-dkms nvidia-utils nvidia-settings opencl-nvidia"
 echo "\$GPU_INFO" | grep -qi intel    && GPU_PKGS="\$GPU_PKGS vulkan-intel intel-media-driver libva-intel-driver"
-echo "\$GPU_INFO" | grep -Eqi "amd|ati|radeon" && GPU_PKGS="\$GPU_PKGS xf86-video-amdgpu vulkan-radeon libva-mesa-driver mesa-vdpau"
+echo "\$GPU_INFO" | grep -Eqi "amd|ati|radeon" && GPU_PKGS="\$GPU_PKGS xf86-video-amdgpu vulkan-radeon libva-mesa-driver"
 
-pacman -S --noconfirm \$GPU_PKGS || echo "WARNING: GPU driver install failed, install manually later."
+for pkg in \$GPU_PKGS; do
+    pacman -S --needed --noconfirm "\$pkg" || echo "WARNING: failed to install \$pkg, skipping."
+done
 
-# build & install yay (AUR helper) as the new user, sudo temporarily passwordless for this step
+# installing yay
 echo "%wheel ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/99-yay-temp
 chmod 440 /etc/sudoers.d/99-yay-temp
 
 su - "${USERNAME}" -c "cd ~ && git clone https://aur.archlinux.org/yay-bin.git && cd yay-bin && makepkg -si --noconfirm" \
     || echo "WARNING: yay install failed, you can retry manually later."
 
-# dwl setup
+# dwl minimal wayland setup, no login manager/greeter
 cat > /home/${USERNAME}/dwl-install.sh <<'DWLSCRIPT'
 #!/bin/bash
 DWL_PKGS="dwl foot wmenu dwlb mako cliphist swaybg swaylock wl-clipboard seatd seatd-runit
 xorg-xwayland
 ttf-firacode-nerd noto-fonts noto-fonts-cjk noto-fonts-emoji
-starship zoxide jq fd gotop fzf fastfetch eza bat ripgrep imagemagick ffmpeg 7zip
+starship zoxide jq fd fzf fastfetch eza bat ripgrep imagemagick ffmpeg 7zip
 herdr-bin yazi bluetui impala wiremix cava ttyper mpv rmpc mpc mpd
-brightnessctl playerctl libnotify
+brightnessctl playerctl libnotify gotop
 wireguard-tools grim slurp nodejs npm
 polkit xdg-desktop-portal xdg-desktop-portal-wlr qt5-wayland qt6-wayland"
 
