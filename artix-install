@@ -151,7 +151,7 @@ BASESTRAP_PKGS="base base-devel elogind-runit dbus-runit \
     bluez bluez-utils bluez-runit \
     git wget curl rsync unzip zip tar reflector \
     neovim sudo zsh \
-    gotop tree less pciutils usbutils"
+    tree less pciutils usbutils"
 BASESTRAP_OK=0
 for i in 1 2 3; do
     if basestrap /mnt $BASESTRAP_PKGS; then
@@ -285,7 +285,7 @@ xorg-xwayland
 ttf-firacode-nerd noto-fonts noto-fonts-cjk noto-fonts-emoji
 starship zoxide jq fd fzf fastfetch eza bat ripgrep imagemagick ffmpeg 7zip
 herdr-bin yazi bluetui impala wiremix cava ttyper mpv rmpc mpc mpd
-brightnessctl playerctl libnotify
+brightnessctl playerctl libnotify gotop
 wireguard-tools grim slurp nodejs npm
 polkit xdg-desktop-portal xdg-desktop-portal-wlr qt5-wayland qt6-wayland"
 
