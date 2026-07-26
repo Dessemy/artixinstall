@@ -200,6 +200,13 @@ cat >> /etc/iwd/main.conf <<IWD
 EnableNetworkConfiguration=true
 IWD
 
+# fallback DNS in case iwd hasn't written resolv.conf yet on first connect
+rm -f /etc/resolv.conf
+cat > /etc/resolv.conf <<RESOLV
+nameserver 1.1.1.1
+nameserver 8.8.8.8
+RESOLV
+
 mkdir -p /etc/runit/runsvdir/default
 ln -sf /etc/runit/sv/dbus /etc/runit/runsvdir/default/ 2>/dev/null || true
 ln -sf /etc/runit/sv/iwd /etc/runit/runsvdir/default/ 2>/dev/null || true
