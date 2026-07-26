@@ -293,7 +293,7 @@ su - "${USERNAME}" -c "cd ~ && git clone https://aur.archlinux.org/yay-bin.git &
 # dwl setup
 cat > /home/${USERNAME}/dwl-install.sh <<'DWLSCRIPT'
 #!/bin/bash
-DWL_PKGS="dwl foot wmenu dwlb mako cliphist swaybg swaylock wl-clipboard seatd seatd-runit
+DWL_PKGS="dwl foot wmenu mako cliphist swaybg swaylock wl-clipboard seatd seatd-runit
 xorg-xwayland
 ttf-firacode-nerd noto-fonts noto-fonts-cjk noto-fonts-emoji
 starship zoxide jq fd fzf fastfetch eza bat ripgrep imagemagick ffmpeg 7zip
