@@ -9,7 +9,7 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 
 [ "$(id -u)" -eq 0 ] || error "Run as root."
 
-# location of this repo (dotfile folders like foot/, mako/, zsh/, etc. live next to this script)
+# location of this dotfiles
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_DIRS=(foot herdr mako mpd rmpc yazi nvim zsh)
 
@@ -62,8 +62,8 @@ EFI_SIZE=${EFI_SIZE:-512}
 
 echo
 warn "ALL DATA on $DISK will be ERASED!"
-read -rp "Type 'YES' to continue: " CONFIRM
-[ "$CONFIRM" = "YES" ] || error "Aborted."
+read -rp "Type 'Y' to continue: " CONFIRM
+[ "$CONFIRM" = "Y" ] || error "Aborted."
 
 # partitioning
 info "Partitioning $DISK ..."
@@ -285,7 +285,7 @@ chmod 440 /etc/sudoers.d/99-yay-temp
 su - "${USERNAME}" -c "cd ~ && git clone https://aur.archlinux.org/yay-bin.git && cd yay-bin && makepkg -si --noconfirm" \
     || echo "WARNING: yay install failed, you can retry manually later."
 
-# dwl minimal wayland setup, no login manager/greeter
+# dwl setup
 cat > /home/${USERNAME}/dwl-install.sh <<'DWLSCRIPT'
 #!/bin/bash
 DWL_PKGS="dwl foot wmenu dwlb mako cliphist swaybg swaylock wl-clipboard seatd seatd-runit
@@ -309,7 +309,7 @@ rm -f /home/${USERNAME}/dwl-install.sh
 
 rm -f /etc/sudoers.d/99-yay-temp
 
-# seatd for dwl's seat management (no login manager needed)
+# seatd for dwl's seat management
 mkdir -p /etc/runit/runsvdir/default
 ln -sf /etc/runit/sv/seatd /etc/runit/runsvdir/default/ 2>/dev/null || true
 usermod -aG seat "${USERNAME}"
