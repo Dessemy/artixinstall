@@ -9,7 +9,7 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 
 [ "$(id -u)" -eq 0 ] || error "Run as root."
 
-# location of this dotfiles
+# location of this repo (dotfile folders like foot/, mako/, zsh/, etc. live next to this script)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_DIRS=(foot herdr mako mpd rmpc yazi nvim zsh)
 
@@ -222,6 +222,8 @@ fi
 
 pacman -Syy --noconfirm || echo "WARNING: pacman sync had issues (extra/multilib mirror may be flaky), continuing anyway."
 
+chsh -s /bin/zsh root
+
 # install dotfiles staged from the repo (if any were found)
 mkdir -p /home/${USERNAME}/.config
 if [ -d /root/dotfiles-src ]; then
@@ -235,7 +237,7 @@ if [ -d /root/dotfiles-src ]; then
     rm -rf /root/dotfiles-src
 fi
 
-# point zsh at XDG_CONFIG_HOME/zsh (only matters if a 'zsh' dotfiles folder was copied above)
+# point zsh at XDG_CONFIG_HOME/zsh
 touch /etc/zsh/zshenv
 if ! grep -q "XDG_CONFIG_HOME" /etc/zsh/zshenv 2>/dev/null; then
 cat >> /etc/zsh/zshenv <<'ZSHENV'
@@ -252,7 +254,7 @@ EnableNetworkConfiguration=true
 IWD
 
 # fallback DNS in case iwd hasn't written resolv.conf yet on first connect
-rm -f /etc/resolv.conf
+rm -f /etc/resolv.conf 2>/dev/null || true
 cat > /etc/resolv.conf <<RESOLV
 nameserver 1.1.1.1
 RESOLV
@@ -283,19 +285,17 @@ chmod 440 /etc/sudoers.d/99-yay-temp
 su - "${USERNAME}" -c "cd ~ && git clone https://aur.archlinux.org/yay-bin.git && cd yay-bin && makepkg -si --noconfirm" \
     || echo "WARNING: yay install failed, you can retry manually later."
 
-# dwl setup
+# dwl minimal wayland setup, no login manager/greeter
 cat > /home/${USERNAME}/dwl-install.sh <<'DWLSCRIPT'
 #!/bin/bash
 DWL_PKGS="dwl foot wmenu dwlb mako cliphist swaybg swaylock wl-clipboard seatd seatd-runit
 xorg-xwayland
 ttf-firacode-nerd noto-fonts noto-fonts-cjk noto-fonts-emoji
-starship zoxide jq fd fzf fastfetch eza bat ripgrep imagemagick ffmpeg 7zip
+starship zoxide jq fd gotop fzf fastfetch eza bat ripgrep imagemagick ffmpeg 7zip
 herdr-bin yazi bluetui impala wiremix cava ttyper mpv rmpc mpc mpd
-brightnessctl playerctl libnotify gotop
+brightnessctl playerctl libnotify
 wireguard-tools grim slurp nodejs npm
 polkit xdg-desktop-portal xdg-desktop-portal-wlr qt5-wayland qt6-wayland"
-
-chsh -s /bin/zsh root
 
 for pkg in \$DWL_PKGS; do
     yay -S --needed --noconfirm "\$pkg" || echo "WARNING: failed to install \$pkg, skipping."
@@ -309,7 +309,7 @@ rm -f /home/${USERNAME}/dwl-install.sh
 
 rm -f /etc/sudoers.d/99-yay-temp
 
-# seatd for dwl's seat management
+# seatd for dwl's seat management (no login manager needed)
 mkdir -p /etc/runit/runsvdir/default
 ln -sf /etc/runit/sv/seatd /etc/runit/runsvdir/default/ 2>/dev/null || true
 usermod -aG seat "${USERNAME}"
