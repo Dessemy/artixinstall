@@ -9,6 +9,10 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 
 [ "$(id -u)" -eq 0 ] || error "Run as root."
 
+# location of this dotfiles
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_DIRS=(foot herdr mako mpd rmpc yazi nvim zsh)
+
 # ensure partitioning tool is available
 if ! command -v parted >/dev/null 2>&1; then
     info "parted not found, installing ..."
@@ -122,6 +126,17 @@ if [ "$BOOT_MODE" = "uefi" ]; then
     mount "$EFI_PART" /mnt/boot/efi
 fi
 
+# stage dotfiles from this repo (if any) for the chroot step to install later
+mkdir -p /mnt/root/dotfiles-src
+for dir in "${CONFIG_DIRS[@]}"; do
+    if [ -d "$SCRIPT_DIR/$dir" ]; then
+        cp -r "$SCRIPT_DIR/$dir" /mnt/root/dotfiles-src/
+        info "Staged dotfiles: $dir"
+    else
+        warn "Dotfiles folder '$dir' not found next to this script, skipping"
+    fi
+done
+
 # speed up / harden pacman against slow mirrors
 sed -i 's/^#ParallelDownloads.*/ParallelDownloads = 5/' /etc/pacman.conf 2>/dev/null || true
 pacman -Syy --noconfirm || true
@@ -179,7 +194,7 @@ useradd -m -G wheel -s /bin/zsh "${USERNAME}"
 echo "${USERNAME}:${USER_PASS}" | chpasswd
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
 
-# add Arch Linux repositories (extra) + multilib, appended after Artix's own repos
+# add Arch repo
 pacman -S --noconfirm artix-archlinux-support
 pacman-key --populate archlinux
 
@@ -201,20 +216,28 @@ fi
 
 pacman -Syy --noconfirm
 
-chsh -s /bin/zsh root
+# install dotfiles staged from the repo (if any were found)
+mkdir -p /home/${USERNAME}/.config
+if [ -d /root/dotfiles-src ]; then
+    for dir in /root/dotfiles-src/*/; do
+        [ -d "\$dir" ] || continue
+        dname=\$(basename "\$dir")
+        cp -r "\$dir" "/home/${USERNAME}/.config/\$dname"
+        echo "  copied \$dname -> ~/.config/\$dname"
+    done
+    chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.config
+    rm -rf /root/dotfiles-src
+fi
 
-cat > /etc/zsh/zshrc <<ZSHRC
-autoload -Uz compinit && compinit
-autoload -Uz colors && colors
-PROMPT="%F{green}%n@%m%f:%F{blue}%~%f%# "
-HISTFILE=~/.zsh_history
-HISTSIZE=5000
-SAVEHIST=5000
-setopt HIST_IGNORE_DUPS SHARE_HISTORY AUTO_CD
-ZSHRC
-cp /etc/zsh/zshrc /root/.zshrc
-cp /etc/zsh/zshrc /home/${USERNAME}/.zshrc
-chown ${USERNAME}:${USERNAME} /home/${USERNAME}/.zshrc
+# point zsh at XDG_CONFIG_HOME/zsh (only matters if a 'zsh' dotfiles folder was copied above)
+touch /etc/zsh/zshenv
+if ! grep -q "XDG_CONFIG_HOME" /etc/zsh/zshenv 2>/dev/null; then
+cat >> /etc/zsh/zshenv <<'ZSHENV'
+export PATH="\$HOME/.config/scripts:\$PATH"
+export XDG_CONFIG_HOME="\$HOME/.config"
+export ZDOTDIR="\$XDG_CONFIG_HOME/zsh"
+ZSHENV
+fi
 
 mkdir -p /etc/iwd
 cat >> /etc/iwd/main.conf <<IWD
@@ -254,7 +277,34 @@ chmod 440 /etc/sudoers.d/99-yay-temp
 su - "${USERNAME}" -c "cd ~ && git clone https://aur.archlinux.org/yay-bin.git && cd yay-bin && makepkg -si --noconfirm" \
     || echo "WARNING: yay install failed, you can retry manually later."
 
+# dwl setup
+cat > /home/${USERNAME}/dwl-install.sh <<'DWLSCRIPT'
+#!/bin/bash
+DWL_PKGS="dwl foot wmenu dwlb mako cliphist swaybg swaylock wl-clipboard seatd seatd-runit
+xorg-xwayland
+ttf-firacode-nerd noto-fonts noto-fonts-cjk noto-fonts-emoji
+starship zoxide jq fd fzf fastfetch eza bat ripgrep imagemagick ffmpeg 7zip
+herdr-bin yazi bluetui impala wiremix cava ttyper mpv rmpc mpc mpd
+brightnessctl playerctl libnotify
+wireguard-tools grim slurp nodejs npm
+polkit xdg-desktop-portal xdg-desktop-portal-wlr qt5-wayland qt6-wayland"
+
+for pkg in \$DWL_PKGS; do
+    yay -S --needed --noconfirm "\$pkg" || echo "WARNING: failed to install \$pkg, skipping."
+done
+DWLSCRIPT
+chown ${USERNAME}:${USERNAME} /home/${USERNAME}/dwl-install.sh
+chmod +x /home/${USERNAME}/dwl-install.sh
+
+su - "${USERNAME}" -c /home/${USERNAME}/dwl-install.sh
+rm -f /home/${USERNAME}/dwl-install.sh
+
 rm -f /etc/sudoers.d/99-yay-temp
+
+# seatd for dwl's seat management
+mkdir -p /etc/runit/runsvdir/default
+ln -sf /etc/runit/sv/seatd /etc/runit/runsvdir/default/ 2>/dev/null || true
+usermod -aG seat "${USERNAME}"
 
 if [ -d /sys/firmware/efi/efivars ]; then
     grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=Artix
@@ -267,6 +317,8 @@ EOF
 chmod +x /mnt/root/chroot-setup.sh
 artix-chroot /mnt /root/chroot-setup.sh
 rm /mnt/root/chroot-setup.sh
+
+chsh -s /bin/zsh root
 
 info "Installation complete!"
 echo
