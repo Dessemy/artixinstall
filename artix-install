@@ -204,7 +204,6 @@ IWD
 rm -f /etc/resolv.conf
 cat > /etc/resolv.conf <<RESOLV
 nameserver 1.1.1.1
-nameserver 8.8.8.8
 RESOLV
 
 mkdir -p /etc/runit/runsvdir/default
