@@ -128,15 +128,15 @@ pacman -Syy --noconfirm || true
 
 # base install (retry a few times, mirrors can be flaky/slow)
 info "Running basestrap ..."
-BASESTRAP_PKGS="base base-devel runit elogind-runit dbus-runit \
+BASESTRAP_PKGS="base base-devel elogind-runit dbus-runit \
     linux-zen linux-firmware linux-zen-headers \
     grub efibootmgr ntfs-3g dosfstools e2fsprogs \
     iwd iwd-runit iproute2 inetutils openssh openssh-runit \
     pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber alsa-utils \
     bluez bluez-utils bluez-runit \
-    git wget curl rsync unzip zip tar \
+    git wget curl rsync unzip zip tar reflector \
     neovim sudo zsh \
-    htop tree less pciutils usbutils"
+    gotop tree less pciutils usbutils"
 BASESTRAP_OK=0
 for i in 1 2 3; do
     if basestrap /mnt $BASESTRAP_PKGS; then
@@ -178,6 +178,28 @@ HOSTS
 useradd -m -G wheel -s /bin/zsh "${USERNAME}"
 echo "${USERNAME}:${USER_PASS}" | chpasswd
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
+
+# add Arch Linux repositories (extra) + multilib, appended after Artix's own repos
+pacman -S --noconfirm artix-archlinux-support
+pacman-key --populate archlinux
+
+reflector --country Indonesia,Singapore,Japan --age 12 --protocol https --sort rate \
+    --save /etc/pacman.d/mirrorlist-arch \
+    || reflector --latest 20 --protocol https --sort rate --save /etc/pacman.d/mirrorlist-arch \
+    || curl -s "https://archlinux.org/mirrorlist/all/" | sed -e 's/^#Server/Server/' > /etc/pacman.d/mirrorlist-arch
+
+if ! grep -q '^\[extra\]' /etc/pacman.conf; then
+cat >> /etc/pacman.conf <<PACMANCONF
+
+[extra]
+Include = /etc/pacman.d/mirrorlist-arch
+
+[multilib]
+Include = /etc/pacman.d/mirrorlist-arch
+PACMANCONF
+fi
+
+pacman -Syy --noconfirm
 
 chsh -s /bin/zsh root
 
