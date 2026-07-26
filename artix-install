@@ -283,7 +283,7 @@ chmod 440 /etc/sudoers.d/99-yay-temp
 su - "${USERNAME}" -c "cd ~ && git clone https://aur.archlinux.org/yay-bin.git && cd yay-bin && makepkg -si --noconfirm" \
     || echo "WARNING: yay install failed, you can retry manually later."
 
-# dwl minimal wayland setup, no login manager/greeter
+# dwl setup
 cat > /home/${USERNAME}/dwl-install.sh <<'DWLSCRIPT'
 #!/bin/bash
 DWL_PKGS="dwl foot wmenu dwlb mako cliphist swaybg swaylock wl-clipboard seatd seatd-runit
@@ -291,7 +291,7 @@ xorg-xwayland
 ttf-firacode-nerd noto-fonts noto-fonts-cjk noto-fonts-emoji
 starship zoxide jq fd fzf fastfetch eza bat ripgrep imagemagick ffmpeg 7zip
 herdr-bin yazi bluetui impala wiremix cava ttyper mpv rmpc mpc mpd
-brightnessctl playerctl libnotify
+brightnessctl playerctl libnotify gotop
 wireguard-tools grim slurp nodejs npm
 polkit xdg-desktop-portal xdg-desktop-portal-wlr qt5-wayland qt6-wayland"
 
@@ -309,7 +309,7 @@ rm -f /home/${USERNAME}/dwl-install.sh
 
 rm -f /etc/sudoers.d/99-yay-temp
 
-# seatd for dwl's seat management (no login manager needed)
+# seatd for dwl's seat management
 mkdir -p /etc/runit/runsvdir/default
 ln -sf /etc/runit/sv/seatd /etc/runit/runsvdir/default/ 2>/dev/null || true
 usermod -aG seat "${USERNAME}"
