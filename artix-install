@@ -298,8 +298,8 @@ xorg-xwayland
 ttf-firacode-nerd noto-fonts noto-fonts-cjk noto-fonts-emoji
 starship zoxide jq fd fzf fastfetch eza bat ripgrep imagemagick ffmpeg 7zip
 herdr-bin yazi bluetui impala wiremix cava ttyper mpv rmpc mpc mpd
-brightnessctl playerctl libnotify gotop
-wireguard-tools grim slurp nodejs npm
+brightnessctl playerctl libnotify gotop tlp tlp-rdw
+wireguard-tools grim slurp nodejs npm waylock
 polkit xdg-desktop-portal xdg-desktop-portal-wlr qt5-wayland qt6-wayland"
 
 for pkg in \$DWL_PKGS; do
