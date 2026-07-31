@@ -259,7 +259,6 @@ IWD
 rm -f /etc/resolv.conf 2>/dev/null || true
 cat > /etc/resolv.conf <<RESOLV
 nameserver 1.1.1.1
-nameserver 8.8.8.8
 RESOLV
 
 mkdir -p /etc/runit/runsvdir/default
@@ -300,7 +299,7 @@ starship zoxide jq fd fzf fastfetch eza bat ripgrep imagemagick ffmpeg 7zip
 herdr-bin yazi bluetui impala wiremix cava ttyper mpv rmpc mpc mpd
 brightnessctl playerctl libnotify gotop tlp tlp-rdw
 wireguard-tools grim slurp nodejs npm waylock
-polkit xdg-desktop-portal xdg-desktop-portal-wlr qt5-wayland qt6-wayland"
+polkit xdg-desktop-portal-np-systemd-rtkit xdg-desktop-portal-wlr qt5-wayland qt6-wayland"
 
 for pkg in \$DWL_PKGS; do
     yay -S --needed --noconfirm "\$pkg" || echo "WARNING: failed to install \$pkg, skipping."
