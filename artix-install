@@ -11,7 +11,7 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 
 # dotfiles live next to this script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_DIRS=(foot herdr mako mpd rmpc yazi nvim zsh)
+CONFIG_DIRS=(foot herdr mako mpd rmpc scripts nnn nvim zsh)
 
 # ensure parted is available
 if ! command -v parted >/dev/null 2>&1; then
@@ -149,7 +149,7 @@ BASESTRAP_PKGS="base base-devel elogind-runit dbus-runit \
     pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber alsa-utils \
     bluez bluez-utils bluez-runit \
     git wget curl rsync unzip zip tar reflector \
-    neovim sudo zsh \
+    neovim opendoas zsh \
     tree less pciutils usbutils"
 BASESTRAP_OK=0
 for i in 1 2 3; do
@@ -191,7 +191,24 @@ HOSTS
 
 useradd -m -G wheel -s /bin/zsh "${USERNAME}"
 echo "${USERNAME}:${USER_PASS}" | chpasswd
-sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
+
+# doas config (replaces sudo)
+cat > /etc/doas.conf <<'DOASCONF'
+permit persist :wheel
+DOASCONF
+chmod 0400 /etc/doas.conf
+
+# thin sudo->doas shim so makepkg/yay (which call "sudo" internally) keep working
+mkdir -p /usr/local/bin
+cat > /usr/local/bin/sudo <<'SUDOSHIM'
+#!/bin/sh
+exec doas "$@"
+SUDOSHIM
+chmod +x /usr/local/bin/sudo
+
+# tell makepkg to use doas natively too
+sed -i "s/^#PACMAN_AUTH=.*/PACMAN_AUTH=(doas)/" /etc/makepkg.conf 2>/dev/null || \
+    echo 'PACMAN_AUTH=(doas)' >> /etc/makepkg.conf
 
 # add Arch repos (extra + multilib)
 pacman -S --noconfirm artix-archlinux-support
@@ -243,6 +260,10 @@ cat >> /etc/zsh/zshenv <<'ZSHENV'
 export PATH="\$HOME/.config/scripts:\$PATH"
 export XDG_CONFIG_HOME="\$HOME/.config"
 export ZDOTDIR="\$XDG_CONFIG_HOME/zsh"
+
+# nnn: file + image/media preview via preview-tui plugin (ueberzugpp backend)
+export NNN_PLUG='p:preview-tui'
+export NNN_FIFO='/tmp/nnn.fifo'
 ZSHENV
 fi
 
@@ -259,6 +280,7 @@ IWD
 rm -f /etc/resolv.conf 2>/dev/null || true
 cat > /etc/resolv.conf <<RESOLV
 nameserver 1.1.1.1
+nameserver 8.8.8.8
 RESOLV
 
 mkdir -p /etc/runit/runsvdir/default
@@ -266,7 +288,7 @@ ln -sf /etc/runit/sv/dbus /etc/runit/runsvdir/default/ 2>/dev/null || true
 ln -sf /etc/runit/sv/iwd /etc/runit/runsvdir/default/ 2>/dev/null || true
 ln -sf /etc/runit/sv/bluetoothd /etc/runit/runsvdir/default/ 2>/dev/null || true
 
-usermod -aG audio,video,lp "${USERNAME}"
+usermod -aG audio,video,lp,storage "${USERNAME}"
 
 # driver install
 GPU_INFO=\$(lspci -nnk | grep -Ei "VGA compatible controller|3D controller|Display controller")
@@ -282,9 +304,11 @@ for pkg in \$GPU_PKGS; do
     pacman -S --needed --noconfirm "\$pkg" || echo "WARNING: failed to install \$pkg, skipping."
 done
 
-# build yay
-echo "%wheel ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/99-yay-temp
-chmod 440 /etc/sudoers.d/99-yay-temp
+# build yay (temporarily allow passwordless wheel for unattended build steps)
+cat > /etc/doas.conf <<'DOASCONF'
+permit nopass :wheel
+DOASCONF
+chmod 0400 /etc/doas.conf
 
 su - "${USERNAME}" -c "cd ~ && git clone https://aur.archlinux.org/yay-bin.git && cd yay-bin && makepkg -si --noconfirm" \
     || echo "WARNING: yay install failed, you can retry manually later."
@@ -296,10 +320,11 @@ DWL_PKGS="dwl foot wmenu mako cliphist swaybg swaylock wl-clipboard seatd seatd-
 xorg-xwayland
 ttf-firacode-nerd noto-fonts noto-fonts-cjk noto-fonts-emoji
 starship zoxide jq fd fzf fastfetch eza bat ripgrep imagemagick ffmpeg 7zip
-herdr-bin yazi bluetui impala wiremix cava ttyper mpv rmpc mpc mpd
+herdr-bin nnn ueberzugpp chafa ffmpegthumbnailer poppler mediainfo bluetui impala wiremix cava ttyper mpv rmpc mpc mpd
 brightnessctl playerctl libnotify gotop tlp tlp-rdw
 wireguard-tools grim slurp nodejs npm waylock
-polkit xdg-desktop-portal-np-systemd-rtkit xdg-desktop-portal-wlr qt5-wayland qt6-wayland"
+usbmount xdg-desktop-portal-no-sytemd-rtkit xdg-desktop-portal-wlr qt5-wayland qt6-wayland
+steam obs-studio lutris qutebrowser vesktop-bin onlyoffice-bin"
 
 for pkg in \$DWL_PKGS; do
     yay -S --needed --noconfirm "\$pkg" || echo "WARNING: failed to install \$pkg, skipping."
@@ -311,7 +336,24 @@ chmod +x /home/${USERNAME}/dwl-install.sh
 su - "${USERNAME}" -c /home/${USERNAME}/dwl-install.sh
 rm -f /home/${USERNAME}/dwl-install.sh
 
-rm -f /etc/sudoers.d/99-yay-temp
+# nnn plugins (adds the preview-tui plugin used by NNN_PLUG above)
+su - "${USERNAME}" -c "sh -c \"\$(curl -Ls https://raw.githubusercontent.com/jarun/nnn/master/plugins/getplugs)\"" \
+    || echo "WARNING: nnn plugin install failed, run 'getplugs' manually later."
+
+# usbmount: auto-mount USB drives on plug-in (udev-triggered, no daemon/session needed)
+if [ -f /etc/usbmount/usbmount.conf ]; then
+    sed -i '/^FS_MOUNTOPTIONS=/d' /etc/usbmount/usbmount.conf
+    echo 'FS_MOUNTOPTIONS="-fstype=vfat,gid=storage,dmask=0022,fmask=0133 -fstype=exfat,gid=storage,dmask=0022,fmask=0133 -fstype=ntfs,gid=storage,dmask=0022,fmask=0133"' \
+        >> /etc/usbmount/usbmount.conf
+else
+    echo "WARNING: /etc/usbmount/usbmount.conf not found, usbmount may not be installed correctly."
+fi
+
+# restore normal (password-required) doas policy
+cat > /etc/doas.conf <<'DOASCONF'
+permit persist :wheel
+DOASCONF
+chmod 0400 /etc/doas.conf
 
 # seatd for dwl
 ln -sf /etc/runit/sv/seatd /etc/runit/runsvdir/default/ 2>/dev/null || true
