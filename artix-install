@@ -334,6 +334,10 @@ chown -R ${USERNAME}:${USERNAME} \
     "/home/${USERNAME}/.local/share/mpd" \
     "/home/${USERNAME}/.cache/mpd"
 
+# wallpaper folder, used by swaybg + the "walls" (fzf) picker script
+mkdir -p "/home/${USERNAME}/Pictures/Wallpapers"
+chown -R ${USERNAME}:${USERNAME} "/home/${USERNAME}/Pictures"
+
 # if no mpd.conf came from the staged dotfiles, generate a working default
 # so mpd actually starts instead of silently failing on first run
 if [ ! -f "/home/${USERNAME}/.config/mpd/mpd.conf" ]; then
