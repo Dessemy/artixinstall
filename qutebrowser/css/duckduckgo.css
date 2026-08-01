@@ -1,0 +1,57 @@
+body.js-focus-visible,
+#wrapper,
+.body--home,
+.header_wrap,
+.header,
+.header--aside,
+.content_wrapper,
+.results,
+.results--main,
+.serp__bottom-spacing,
+[data-testid="mainline"],
+[data-testid="serp-header"],
+[data-testid="mainline"] > div {
+  background-color: #1a1b26 !important;
+  color: #a9b1d6 !important;
+  border-color: #2f3549 !important;
+}
+
+.result__a,
+.result__title a,
+[data-testid="result-title-a"] {
+  color: #7aa2f7 !important;
+}
+
+.result__snippet,
+[data-testid="result-snippet"] {
+  color: #a9b1d6 !important;
+}
+
+.result__url,
+[data-testid="result-extras-url-link"] {
+  color: #9ece6a !important;
+}
+
+#search_form_input,
+#search_form_input_homepage,
+.search__input {
+  background-color: #16161e !important;
+  color: #a9b1d6 !important;
+  border-color: #2f3549 !important;
+}
+
+.header--aside,
+.zci--calculator,
+.module,
+.cards {
+  background-color: #16161e !important;
+  border-color: #2f3549 !important;
+}
+
+#wrapper *,
+.results *,
+.header *,
+.header--aside *,
+[data-testid="mainline"] * {
+  border-radius: 0 !important;
+}
