@@ -10,7 +10,7 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 [ "$(id -u)" -eq 0 ] || error "Run as root."
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_DIRS=(foot mako mpd rmpc scripts nnn nvim)
+CONFIG_DIRS=(foot gtk-3.0 gtk-4.0 mako qutebrowser scripts nnn nvim)
 
 # ensure parted is available
 if ! command -v parted >/dev/null 2>&1; then
@@ -150,11 +150,12 @@ pacman -Syy --noconfirm || true
 # base install (retry, mirrors can be flaky)
 info "Running basestrap ..."
 BASESTRAP_PKGS="base base-devel elogind-runit dbus-runit \
-    linux-zen linux-firmware linux-zen-headers \
+    linux linux-firmware linux-headers \
     grub efibootmgr ntfs-3g dosfstools e2fsprogs \
     iwd iwd-runit iproute2 inetutils openssh openssh-runit openresolv \
     pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber alsa-utils \
     bluez bluez-utils bluez-runit \
+    mpd \
     git wget curl rsync unzip zip tar reflector \
     neovim opendoas bash-completion \
     tree less pciutils usbutils"
@@ -296,6 +297,54 @@ ln -sf /etc/runit/sv/bluetoothd /etc/runit/runsvdir/default/ 2>/dev/null || true
 
 usermod -aG audio,video,lp,storage "${USERNAME}"
 
+# rmpc/mpd setup: music library + XDG data/cache dirs used by a typical
+# per-user mpd.conf (matches whatever the staged mpd dotfiles expect)
+mkdir -p "/home/${USERNAME}/Music" \
+    "/home/${USERNAME}/.local/share/mpd/playlists" \
+    "/home/${USERNAME}/.cache/mpd"
+chown -R ${USERNAME}:${USERNAME} \
+    "/home/${USERNAME}/Music" \
+    "/home/${USERNAME}/.local/share/mpd" \
+    "/home/${USERNAME}/.cache/mpd"
+
+# if no mpd.conf came from the staged dotfiles, generate a working default
+# so mpd actually starts instead of silently failing on first run
+if [ ! -f "/home/${USERNAME}/.config/mpd/mpd.conf" ]; then
+    mkdir -p "/home/${USERNAME}/.config/mpd"
+    cat > "/home/${USERNAME}/.config/mpd/mpd.conf" <<MPDCONF
+music_directory     "~/Music"
+playlist_directory  "~/.local/share/mpd/playlists"
+db_file             "~/.local/share/mpd/tag_cache"
+log_file            "~/.cache/mpd/mpd.log"
+pid_file            "~/.cache/mpd/mpd.pid"
+state_file          "~/.local/share/mpd/state"
+sticker_file        "~/.local/share/mpd/sticker.sql"
+
+bind_to_address     "127.0.0.1"
+port                "6600"
+auto_update         "yes"
+
+audio_output {
+    type "pulse"
+    name "PulseAudio (via pipewire-pulse)"
+}
+MPDCONF
+    chown ${USERNAME}:${USERNAME} "/home/${USERNAME}/.config/mpd/mpd.conf"
+fi
+
+# if no rmpc config came from the staged dotfiles, leave it be — rmpc falls
+# back to sane built-in defaults (127.0.0.1:6600) when config.ron is absent
+
+# auto-start mpd on login (per-user daemon, not a system runit service, so
+# it has access to the user's own pipewire/pulse session)
+if ! grep -q 'pgrep -x mpd' "/home/${USERNAME}/.bashrc" 2>/dev/null; then
+    cat >> "/home/${USERNAME}/.bashrc" <<'MPDAUTOSTART'
+
+# auto-start mpd (music daemon) if not already running
+pgrep -x mpd >/dev/null || mpd >/dev/null 2>&1
+MPDAUTOSTART
+fi
+
 # driver install
 GPU_INFO=\$(lspci -nnk | grep -Ei "VGA compatible controller|3D controller|Display controller")
 echo "Detected GPU(s):"
@@ -326,11 +375,11 @@ DWL_PKGS="dwl foot wmenu mako cliphist swaybg swaylock wl-clipboard seatd seatd-
 xorg-xwayland
 ttf-firacode-nerd noto-fonts noto-fonts-cjk noto-fonts-emoji
 starship zoxide jq fd fzf fastfetch eza bat ripgrep imagemagick ffmpeg 7zip
-nnn ueberzugpp chafa ffmpegthumbnailer poppler mediainfo bluetui impala wiremix cava ttyper mpv rmpc mpc mpd
+nnn ueberzugpp chafa ffmpegthumbnailer poppler mediainfo bluetui impala wiremix cava ttyper mpv rmpc mpc
 brightnessctl playerctl libnotify gotop tlp tlp-rdw
 wireguard-tools grim slurp nodejs npm waylock github-cli
 usbmount xdg-desktop-portal-no-sytemd-rtkit xdg-desktop-portal-wlr qt5-wayland qt6-wayland
-steam obs-studio lutris qutebrowser vesktop-bin onlyoffice-bin"
+steam obs-studio lutris qutebrowser vesktop-bin onlyoffice-bin blender-bin"
 
 for pkg in \$DWL_PKGS; do
     yay -S --needed --noconfirm "\$pkg" || echo "WARNING: failed to install \$pkg, skipping."
