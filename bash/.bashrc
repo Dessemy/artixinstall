@@ -15,7 +15,6 @@ fi
 
 export GPG_TTY=$(tty)
 
-# nnn: file + image/media preview via preview-tui plugin (ueberzugpp backend)
 export NNN_PLUG='p:preview-tui'
 export NNN_FIFO='/tmp/nnn.fifo'
 
@@ -26,6 +25,11 @@ case $- in
   *) return ;;
 esac
 
+# ---- auto-start dwl on tty1 login ----
+if [ -z "$WAYLAND_DISPLAY" ] && [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
+  exec dbus-run-session ~/.config/scripts/startdwl
+fi
+
 # ---- history ----
 export HISTFILE="$XDG_STATE_HOME/bash/history"
 mkdir -p "$(dirname "$HISTFILE")"
@@ -34,7 +38,6 @@ HISTFILESIZE=100000
 HISTCONTROL=ignoredups:ignorespace
 shopt -s histappend
 shopt -s cmdhist
-# closest bash equivalent to zsh's SHARE_HISTORY: sync every prompt
 PROMPT_COMMAND="history -a; history -c; history -r; ${PROMPT_COMMAND}"
 
 # ---- shell options ----
@@ -51,8 +54,6 @@ elif [ -f /etc/bash_completion ]; then
   source /etc/bash_completion
 fi
 
-# menu-style completion, closest bash equivalent to
-# `zstyle ':completion:*' menu select`
 bind 'set show-all-if-ambiguous on'
 bind 'set menu-complete-display-prefix on'
 bind 'TAB:menu-complete'
@@ -86,7 +87,6 @@ _fzf_file_no_hidden() {
 }
 
 # ---- aliases ----
-alias sdwl='dbus-run-session ~/.config/scripts/startdwl'
 
 alias ls='eza --icons'
 alias ll='eza -lh --icons --git'
