@@ -130,15 +130,15 @@ config.set("downloads.remove_finished", 5000)
 config.set("fileselect.handler", "external")
 config.set(
     "fileselect.single_file.command",
-    ["foot", "--app-id", "filechoose_nnn", "nnn", "--chooser-file", "{}"],
+    ["foot", "--app-id", "filechoose_nnn", "nnn", "-p", "{}"],
 )
 config.set(
     "fileselect.multiple_files.command",
-    ["foot", "--app-id", "filechoose_nnn", "nnn", "--chooser-file", "{}"],
+    ["foot", "--app-id", "filechoose_nnn", "nnn", "-p", "{}"],
 )
 config.set(
     "fileselect.folder.command",
-    ["foot", "--app-id", "filechoose_nnn", "nnn", "--chooser-file", "{}"],
+    ["foot", "--app-id", "filechoose_nnn", "nnn", "-p", "{}"],
 )
 
 config.bind("<Alt-x>", "cmd-set-text :")
