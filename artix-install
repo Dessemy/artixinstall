@@ -11,7 +11,9 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 
 # dotfiles live next to this script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_DIRS=(foot herdr mako mpd rmpc scripts nnn nvim zsh)
+CONFIG_DIRS=(foot herdr mako mpd rmpc scripts nnn nvim)
+# bash/.bashrc and bash/starship.toml are staged and placed separately
+# below since they don't go under ~/.config/bash like the dirs above
 
 # ensure parted is available
 if ! command -v parted >/dev/null 2>&1; then
@@ -136,6 +138,14 @@ for dir in "${CONFIG_DIRS[@]}"; do
     fi
 done
 
+if [ -f "$SCRIPT_DIR/bash/.bashrc" ] && [ -f "$SCRIPT_DIR/bash/starship.toml" ]; then
+    cp "$SCRIPT_DIR/bash/.bashrc" /mnt/root/dotfiles-src/dot-bashrc
+    cp "$SCRIPT_DIR/bash/starship.toml" /mnt/root/dotfiles-src/starship.toml
+    info "Staged dotfiles: bash (.bashrc, starship.toml)"
+else
+    warn "bash/.bashrc or bash/starship.toml not found next to this script, skipping"
+fi
+
 # speed up pacman
 sed -i 's/^#ParallelDownloads.*/ParallelDownloads = 5/' /etc/pacman.conf 2>/dev/null || true
 pacman -Syy --noconfirm || true
@@ -149,7 +159,7 @@ BASESTRAP_PKGS="base base-devel elogind-runit dbus-runit \
     pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber alsa-utils \
     bluez bluez-utils bluez-runit \
     git wget curl rsync unzip zip tar reflector \
-    neovim opendoas zsh \
+    neovim opendoas bash-completion \
     tree less pciutils usbutils"
 BASESTRAP_OK=0
 for i in 1 2 3; do
@@ -189,7 +199,7 @@ cat >> /etc/hosts <<HOSTS
 127.0.1.1   ${HOSTNAME}.localdomain ${HOSTNAME}
 HOSTS
 
-useradd -m -G wheel -s /bin/zsh "${USERNAME}"
+useradd -m -G wheel -s /bin/bash "${USERNAME}"
 echo "${USERNAME}:${USER_PASS}" | chpasswd
 
 # doas config (replaces sudo)
@@ -238,7 +248,7 @@ fi
 
 pacman -Syy --noconfirm || echo "WARNING: pacman sync had issues (extra/multilib mirror may be flaky), continuing anyway."
 
-chsh -s /bin/zsh root
+# root already defaults to /bin/bash from the base install, no chsh needed
 
 # install staged dotfiles
 mkdir -p /home/${USERNAME}/.config
@@ -250,22 +260,27 @@ if [ -d /root/dotfiles-src ]; then
         echo "  copied \$dname -> ~/.config/\$dname"
     done
     chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.config
-    rm -rf /root/dotfiles-src
 fi
 
-# point zsh at XDG_CONFIG_HOME/zsh
-touch /etc/zsh/zshenv
-if ! grep -q "XDG_CONFIG_HOME" /etc/zsh/zshenv 2>/dev/null; then
-cat >> /etc/zsh/zshenv <<'ZSHENV'
-export PATH="\$HOME/.config/scripts:\$PATH"
-export XDG_CONFIG_HOME="\$HOME/.config"
-export ZDOTDIR="\$XDG_CONFIG_HOME/zsh"
-
-# nnn: file + image/media preview via preview-tui plugin (ueberzugpp backend)
-export NNN_PLUG='p:preview-tui'
-export NNN_FIFO='/tmp/nnn.fifo'
-ZSHENV
+# single-file bash config: .bashrc goes straight to $HOME, starship.toml
+# to ~/.config (starship's default lookup path, so no STARSHIP_CONFIG
+# env var override is needed)
+if [ -f /root/dotfiles-src/dot-bashrc ]; then
+    cp /root/dotfiles-src/dot-bashrc "/home/${USERNAME}/.bashrc"
+    echo "  copied .bashrc -> ~/.bashrc"
 fi
+if [ -f /root/dotfiles-src/starship.toml ]; then
+    cp /root/dotfiles-src/starship.toml "/home/${USERNAME}/.config/starship.toml"
+    echo "  copied starship.toml -> ~/.config/starship.toml"
+fi
+rm -rf /root/dotfiles-src
+
+# a login shell (e.g. a TTY login) only reads ~/.bash_profile, so make it
+# pull in ~/.bashrc too
+cat > /home/${USERNAME}/.bash_profile <<'BASHPROFILE'
+[[ -f "$HOME/.bashrc" ]] && source "$HOME/.bashrc"
+BASHPROFILE
+chown ${USERNAME}:${USERNAME} /home/${USERNAME}/.bashrc /home/${USERNAME}/.bash_profile
 
 mkdir -p /etc/iwd
 cat >> /etc/iwd/main.conf <<IWD
@@ -339,6 +354,15 @@ rm -f /home/${USERNAME}/dwl-install.sh
 # nnn plugins (adds the preview-tui plugin used by NNN_PLUG above)
 su - "${USERNAME}" -c "sh -c \"\$(curl -Ls https://raw.githubusercontent.com/jarun/nnn/master/plugins/getplugs)\"" \
     || echo "WARNING: nnn plugin install failed, run 'getplugs' manually later."
+
+# ble.sh (bash equivalent of zsh-autosuggestions + fast-syntax-highlighting,
+# loaded from ~/.bashrc); pre-install it here so first login doesn't have
+# to build it on the spot
+su - "${USERNAME}" -c 'src=$(mktemp -d) \
+    && git clone --recursive --depth 1 https://github.com/akinomyoga/ble.sh.git "$src" \
+    && make -C "$src" install PREFIX="$HOME/.local" \
+    && rm -rf "$src"' \
+    || echo "WARNING: ble.sh install failed, it will be retried automatically on first login."
 
 # usbmount: auto-mount USB drives on plug-in (udev-triggered, no daemon/session needed)
 if [ -f /etc/usbmount/usbmount.conf ]; then
