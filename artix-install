@@ -11,6 +11,8 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_DIRS=(foot gtk-3.0 gtk-4.0 mako qutebrowser scripts nnn nvim)
+THEME_NAME="tokyonight"
+THEME_FONT="FiraCode Nerd Font Propo Bold 15"
 
 # ensure parted is available
 if ! command -v parted >/dev/null 2>&1; then
@@ -150,6 +152,15 @@ if [ -d "$SCRIPT_DIR/dwl" ]; then
     info "Staged dwl source"
 else
     warn "dwl source folder not found next to this script, skipping (dwl will not be built)"
+fi
+
+# tokyonight is a GTK theme, not a ~/.config dotfile, so it's staged
+# separately (goes to ~/.local/share/themes inside the chroot)
+if [ -d "$SCRIPT_DIR/$THEME_NAME" ]; then
+    cp -r "$SCRIPT_DIR/$THEME_NAME" /mnt/root/theme-src
+    info "Staged theme: $THEME_NAME"
+else
+    warn "Theme folder '$THEME_NAME' not found next to this script, skipping (GTK theme will not be installed)"
 fi
 
 # speed up pacman
@@ -411,6 +422,7 @@ ttf-firacode-nerd noto-fonts noto-fonts-cjk noto-fonts-emoji
 starship zoxide jq fd fzf fastfetch eza bat ripgrep imagemagick ffmpeg 7zip
 nnn ueberzugpp chafa ffmpegthumbnailer poppler mediainfo bluetui impala wiremix cava ttyper mpv rmpc mpc
 brightnessctl playerctl libnotify gotop tlp tlp-rdw
+nwg-look dconf gsettings-desktop-schemas
 wireguard-tools grim slurp nodejs npm waylock github-cli
 usbmount xdg-desktop-portal-no-sytemd-rtkit xdg-desktop-portal-wlr qt5-wayland qt6-wayland
 steam obs-studio lutris qutebrowser vesktop-bin onlyoffice-bin blender-bin"
@@ -424,6 +436,33 @@ chmod +x /home/${USERNAME}/dwl-install.sh
 
 su - "${USERNAME}" -c /home/${USERNAME}/dwl-install.sh
 rm -f /home/${USERNAME}/dwl-install.sh
+
+# install & apply the tokyonight GTK theme
+if [ -d /root/theme-src ]; then
+    echo "Installing GTK theme: ${THEME_NAME} ..."
+    mkdir -p "/home/${USERNAME}/.local/share/themes"
+    cp -r /root/theme-src "/home/${USERNAME}/.local/share/themes/${THEME_NAME}"
+    chown -R ${USERNAME}:${USERNAME} "/home/${USERNAME}/.local/share/themes"
+    rm -rf /root/theme-src
+
+    # nwg-look has no config file of its own for gtk-theme/font/prefer-dark,
+    # it reads and writes those straight to gsettings (dconf), so that's
+    # what we set here. dbus-run-session gives dconf a session bus to talk
+    # to since there's no session running yet inside the chroot.
+    su - "${USERNAME}" -c "dbus-run-session -- bash -c '
+        gsettings set org.gnome.desktop.interface gtk-theme \"${THEME_NAME}\" &&
+        gsettings set org.gnome.desktop.interface color-scheme \"prefer-dark\" &&
+        gsettings set org.gnome.desktop.interface font-name \"${THEME_FONT}\"
+    '" || echo "WARNING: gsettings apply failed, set the theme manually in nwg-look later."
+
+    # export to gtk-3.0/gtk-4.0 settings.ini too, for apps that don't read gsettings directly
+    su - "${USERNAME}" -c "dbus-run-session -- nwg-look -x" \
+        || echo "WARNING: nwg-look -x export failed, run it manually later."
+
+    echo "GTK theme '${THEME_NAME}' applied (font: ${THEME_FONT}, prefer-dark: on)."
+else
+    echo "WARNING: /root/theme-src not staged, tokyonight theme was not installed."
+fi
 
 # nnn plugins (adds the preview-tui plugin used by NNN_PLUG above)
 su - "${USERNAME}" -c "sh -c \"\$(curl -Ls https://raw.githubusercontent.com/jarun/nnn/master/plugins/getplugs)\"" \
