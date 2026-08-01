@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+WALLPAPER_DIR="$HOME/Pictures/Wallpapers"
+CACHE_FILE="$HOME/.cache/current_wallpaper"
+
+if [ ! -d "$WALLPAPER_DIR" ]; then
+    notify-send -u critical "Wallpaper Error" "Directory $WALLPAPER_DIR not found"
+    exit 1
+fi
+
+cd "$WALLPAPER_DIR" || exit 1
+selected=$(find . -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.webp" \) \
+    | sed 's|^\./||' \
+    | fzf --preview 'chafa --size=40x20 "{}" 2>/dev/null' \
+          --preview-window=right:65%:wrap:border-left \
+          --prompt="  Wallpaper > ")
+
+# Exit quietly if cancelled (ESC)
+[ -z "$selected" ] && exit 0
+
+FULL_PATH="$WALLPAPER_DIR/$selected"
+
+pkill -f "swaybg -i" 2>/dev/null
+sleep 0.3
+
+swaybg -i "$FULL_PATH" -m fill &
+disown
+
+echo "$FULL_PATH" > "$CACHE_FILE"
+
+notify-send -i "$FULL_PATH" "Wallpaper Changed" "Now showing: $selected"
