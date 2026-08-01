@@ -184,6 +184,18 @@ static const char *wmenucmd[] = {
 static const char *qutebrowsercmd[]  = { "qutebrowser", NULL };
 static const char *hyprpickercmd[]   = { "hyprpicker", NULL };
 
+/* Screen lock: waylock, colors follow the TokyoNight palette above
+ * (col_bg / col_blu / col_mag / col_red without the alpha byte) */
+static const char *lockcmd[] = {
+	"waylock",
+	"-init-color", "0x1a1b26",
+	"-input-color", "0x7aa2f7",
+	"-input-alt-color", "0xad8ee6",
+	"-fail-color", "0xf7768e",
+	"-fork-on-lock",
+	NULL
+};
+
 static const Key keys[] = {
 	/* Note that Shift changes certain key codes: c -> C, 2 -> at, etc. */
 	/* modifier                              key                     function          argument */
@@ -264,6 +276,7 @@ static const Key keys[] = {
 	TAGKEYS(          XKB_KEY_9, XKB_KEY_parenleft,                  8),
 
 	/* -- session -- */
+	{ MODKEY|WLR_MODIFIER_CTRL,            XKB_KEY_l,              spawn,            {.v = lockcmd} },
 	{ MODKEY|WLR_MODIFIER_SHIFT,           XKB_KEY_Q,              quit,             {0} },
 	{ WLR_MODIFIER_CTRL|WLR_MODIFIER_ALT,  XKB_KEY_Terminate_Server, quit,           {0} },
 
