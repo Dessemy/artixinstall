@@ -10,7 +10,7 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 [ "$(id -u)" -eq 0 ] || error "Run as root."
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_DIRS=(foot gtk-3.0 gtk-4.0 mako qutebrowser scripts nnn nvim)
+CONFIG_DIRS=(foot mako qutebrowser scripts nnn nvim)
 THEME_NAME="tokyonight"
 THEME_FONT="FiraCode Nerd Font Propo Bold 15"
 
@@ -424,7 +424,7 @@ nnn ueberzugpp chafa ffmpegthumbnailer poppler mediainfo bluetui impala wiremix 
 brightnessctl playerctl libnotify gotop tlp tlp-rdw
 nwg-look dconf gsettings-desktop-schemas
 wireguard-tools grim slurp nodejs npm waylock github-cli
-usbmount xdg-desktop-portal-no-sytemd-rtkit xdg-desktop-portal-wlr qt5-wayland qt6-wayland
+usbmount xdg-desktop-portal-no-systemd-rtkit xdg-desktop-portal-wlr qt5-wayland qt6-wayland
 steam obs-studio lutris qutebrowser vesktop-bin onlyoffice-bin blender-bin"
 
 for pkg in \$DWL_PKGS; do
