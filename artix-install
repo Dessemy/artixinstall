@@ -9,11 +9,8 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 
 [ "$(id -u)" -eq 0 ] || error "Run as root."
 
-# dotfiles live next to this script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_DIRS=(foot herdr mako mpd rmpc scripts nnn nvim)
-# bash/.bashrc and bash/starship.toml are staged and placed separately
-# below since they don't go under ~/.config/bash like the dirs above
+CONFIG_DIRS=(foot mako mpd rmpc scripts nnn nvim)
 
 # ensure parted is available
 if ! command -v parted >/dev/null 2>&1; then
@@ -248,8 +245,6 @@ fi
 
 pacman -Syy --noconfirm || echo "WARNING: pacman sync had issues (extra/multilib mirror may be flaky), continuing anyway."
 
-# root already defaults to /bin/bash from the base install, no chsh needed
-
 # install staged dotfiles
 mkdir -p /home/${USERNAME}/.config
 if [ -d /root/dotfiles-src ]; then
@@ -262,9 +257,6 @@ if [ -d /root/dotfiles-src ]; then
     chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.config
 fi
 
-# single-file bash config: .bashrc goes straight to $HOME, starship.toml
-# to ~/.config (starship's default lookup path, so no STARSHIP_CONFIG
-# env var override is needed)
 if [ -f /root/dotfiles-src/dot-bashrc ]; then
     cp /root/dotfiles-src/dot-bashrc "/home/${USERNAME}/.bashrc"
     echo "  copied .bashrc -> ~/.bashrc"
@@ -295,7 +287,6 @@ IWD
 rm -f /etc/resolv.conf 2>/dev/null || true
 cat > /etc/resolv.conf <<RESOLV
 nameserver 1.1.1.1
-nameserver 8.8.8.8
 RESOLV
 
 mkdir -p /etc/runit/runsvdir/default
@@ -335,7 +326,7 @@ DWL_PKGS="dwl foot wmenu mako cliphist swaybg swaylock wl-clipboard seatd seatd-
 xorg-xwayland
 ttf-firacode-nerd noto-fonts noto-fonts-cjk noto-fonts-emoji
 starship zoxide jq fd fzf fastfetch eza bat ripgrep imagemagick ffmpeg 7zip
-herdr-bin nnn ueberzugpp chafa ffmpegthumbnailer poppler mediainfo bluetui impala wiremix cava ttyper mpv rmpc mpc mpd
+nnn ueberzugpp chafa ffmpegthumbnailer poppler mediainfo bluetui impala wiremix cava ttyper mpv rmpc mpc mpd
 brightnessctl playerctl libnotify gotop tlp tlp-rdw
 wireguard-tools grim slurp nodejs npm waylock github-cli
 usbmount xdg-desktop-portal-no-sytemd-rtkit xdg-desktop-portal-wlr qt5-wayland qt6-wayland
