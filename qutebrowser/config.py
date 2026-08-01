@@ -5,22 +5,22 @@ config.load_autoconfig(True)
 
 font = "FiraCode Nerd Font Mono Bold"
 
-base00 = "#1e1e2e"
-base01 = "#181825"
-base02 = "#313244"
-base03 = "#45475a"
-base04 = "#585b70"
-base05 = "#cdd6f4"
-base06 = "#f5e0dc"
-base07 = "#b4befe"
-base08 = "#f38ba8"
-base09 = "#fab387"
-base0A = "#f9e2af"
-base0B = "#a6e3a1"
-base0C = "#94e2d5"
-base0D = "#89b4fa"
-base0E = "#cba6f7"
-base0F = "#f2cdcd"
+base00 = "#1a1b26"
+base01 = "#16161e"
+base02 = "#2f3549"
+base03 = "#444b6a"
+base04 = "#787c99"
+base05 = "#a9b1d6"
+base06 = "#cbccd1"
+base07 = "#d5d6db"
+base08 = "#f7768e"
+base09 = "#ff9e64"
+base0A = "#e0af68"
+base0B = "#9ece6a"
+base0C = "#73daca"
+base0D = "#7aa2f7"
+base0E = "#bb9af7"
+base0F = "#b4f9f8"
 
 secretsExists = False
 secretFile = os.path.expanduser("~/.config/qutebrowser/qutesecrets.py")
@@ -65,6 +65,17 @@ if os.path.isfile(quickmarksFile):
     quickmarksHtmlFileText += "</div></body></html>"
     with open(quickmarksHtmlFilePath, "w") as quickmarksHtmlFile:
         quickmarksHtmlFile.write(quickmarksHtmlFileText)
+
+cssDir = os.path.join(str(config.configdir), "css")
+
+config.set(
+    "content.user_stylesheets",
+    [
+        os.path.join(cssDir, "duckduckgo.css"),
+        os.path.join(cssDir, "github.css"),
+        os.path.join(cssDir, "youtube.css"),
+    ],
+)
 
 config.set("content.blocking.method", "both")
 
@@ -117,7 +128,7 @@ c.url.default_page = str(config.configdir) + "/home.html"
 c.url.start_pages = str(config.configdir) + "/home.html"
 
 c.url.searchengines = {
-    "DEFAULT": "https://www.google.com/search?q={}",
+    "DEFAULT": "https://duckduckgo.com/?q={}",
 }
 
 config.set("completion.open_categories", ["searchengines", "quickmarks", "bookmarks"])
@@ -214,7 +225,7 @@ c.colors.hints.match.fg = base08
 c.fonts.hints = "10pt " + font
 c.hints.padding = {"top": 1, "bottom": 1, "left": 3, "right": 3}
 c.hints.border = "1px solid " + base01
-c.hints.radius = 3
+c.hints.radius = 0
 c.colors.keyhint.fg = base05
 c.colors.keyhint.suffix.fg = base05
 c.colors.keyhint.bg = base00
