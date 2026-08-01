@@ -276,6 +276,13 @@ if [ -d /root/dotfiles-src ]; then
         echo "  copied \$dname -> ~/.config/\$dname"
     done
     chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.config
+
+    # make every file in ~/.config/scripts executable so startdwl/snip/etc.
+    # work right after install without manual chmod
+    if [ -d "/home/${USERNAME}/.config/scripts" ]; then
+        chmod -R +x "/home/${USERNAME}/.config/scripts"
+        echo "  chmod +x applied to ~/.config/scripts/*"
+    fi
 fi
 
 if [ -f /root/dotfiles-src/dot-bashrc ]; then
@@ -416,7 +423,7 @@ su - "${USERNAME}" -c "cd ~ && git clone https://aur.archlinux.org/yay-bin.git &
 # dwl setup
 cat > /home/${USERNAME}/dwl-install.sh <<'DWLSCRIPT'
 #!/bin/bash
-DWL_PKGS="foot wmenu mako cliphist swaybg swaylock wl-clipboard seatd seatd-runit
+DWL_PKGS="foot wmenu mako cliphist swaybg wl-clipboard seatd seatd-runit
 xorg-xwayland
 ttf-firacode-nerd noto-fonts noto-fonts-cjk noto-fonts-emoji
 starship zoxide jq fd fzf fastfetch eza bat ripgrep imagemagick ffmpeg 7zip
