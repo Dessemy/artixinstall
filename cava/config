@@ -1,0 +1,31 @@
+[general]
+autosens = 1
+bars = 0
+
+[input]
+method = pipewire
+source = auto
+
+[output]
+method = noncurses
+channels = mono
+mono_option = average
+
+[color]
+background = '#1a1b26'
+gradient = 0
+horizontal_gradient = 1
+horizontal_gradient_color_1 = '#3d59a1'
+horizontal_gradient_color_2 = '#7aa2f7'
+horizontal_gradient_color_3 = '#7dcfff'
+horizontal_gradient_color_4 = '#bb9af7'
+
+[smoothing]
+noise_reduction = 77
+
+[eq]
+1 = 1
+2 = 1
+3 = 1
+4 = 1
+5 = 1
