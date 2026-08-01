@@ -1,0 +1,51 @@
+html[data-color-mode] {
+  --color-canvas-default: #1a1b26 !important;
+  --color-canvas-subtle: #16161e !important;
+  --color-canvas-inset: #16161e !important;
+  --color-canvas-overlay: #1a1b26 !important;
+
+  --color-fg-default: #a9b1d6 !important;
+  --color-fg-muted: #787c99 !important;
+  --color-fg-subtle: #444b6a !important;
+  --color-fg-on-emphasis: #1a1b26 !important;
+
+  --color-border-default: #2f3549 !important;
+  --color-border-muted: #2f3549 !important;
+
+  --color-accent-fg: #7aa2f7 !important;
+  --color-accent-emphasis: #7aa2f7 !important;
+  --color-accent-muted: rgba(122, 162, 247, 0.4) !important;
+  --color-accent-subtle: #16161e !important;
+
+  --color-success-fg: #9ece6a !important;
+  --color-success-emphasis: #9ece6a !important;
+
+  --color-attention-fg: #e0af68 !important;
+  --color-attention-emphasis: #e0af68 !important;
+
+  --color-severe-fg: #ff9e64 !important;
+  --color-severe-emphasis: #ff9e64 !important;
+
+  --color-danger-fg: #f7768e !important;
+  --color-danger-emphasis: #f7768e !important;
+
+  --color-done-fg: #bb9af7 !important;
+  --color-done-emphasis: #bb9af7 !important;
+
+  --color-neutral-emphasis: #444b6a !important;
+  --color-neutral-muted: rgba(68, 75, 106, 0.4) !important;
+
+  --color-header-bg: #16161e !important;
+  --color-header-text: #a9b1d6 !important;
+
+  --color-btn-primary-bg: #7aa2f7 !important;
+  --color-btn-primary-text: #1a1b26 !important;
+}
+
+html[data-color-mode] body {
+  background-color: #1a1b26 !important;
+}
+
+html[data-color-mode] * {
+  border-radius: 0 !important;
+}
