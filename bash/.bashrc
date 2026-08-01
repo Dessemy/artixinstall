@@ -120,6 +120,8 @@ alias stream='mpv av://v4l2:/dev/video4 --fullscreen --demuxer-lavf-o=input_form
 # ---- key bindings ----
 set -o vi
 
+bind -x '"\ew": walls'
+
 bind '"\e[1;5C": forward-word'
 bind '"\e[1;5D": backward-word'
 
