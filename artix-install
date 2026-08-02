@@ -177,7 +177,7 @@ BASESTRAP_PKGS="base base-devel elogind-runit dbus-runit \
     bluez bluez-utils bluez-runit \
     mpd \
     git wget curl rsync unzip zip tar reflector \
-    neovim sudo bash-completion \
+    neovim opendoas bash-completion \
     tree less pciutils usbutils"
 BASESTRAP_OK=0
 for i in 1 2 3; do
@@ -220,28 +220,23 @@ HOSTS
 useradd -m -G wheel -s /bin/bash "${USERNAME}"
 echo "${USERNAME}:${USER_PASS}" | chpasswd
 
-# sudo config: wheel group needs a password by default, via a drop-in
-# file (never edit /etc/sudoers directly — a syntax error there can lock
-# out all privilege escalation, a drop-in is validated independently)
-mkdir -p /etc/sudoers.d
-cat > /etc/sudoers.d/10-wheel <<'SUDOERS'
-%wheel ALL=(ALL:ALL) ALL
-SUDOERS
-chmod 0440 /etc/sudoers.d/10-wheel
-visudo -cf /etc/sudoers.d/10-wheel || { echo "ERROR: /etc/sudoers.d/10-wheel failed validation"; exit 1; }
+# doas config (replaces sudo)
+cat > /etc/doas.conf <<'DOASCONF'
+permit persist :wheel
+DOASCONF
+chmod 0400 /etc/doas.conf
 
-# sanity check: confirm the user is actually in wheel and the sudoers
-# drop-in is valid. We can't test an unattended privileged sudo call yet
-# (the default policy correctly still requires a password at this point),
-# so we check the two things that would make every later sudo call fail:
-# group membership and sudoers syntax.
-if ! id -nG "${USERNAME}" | grep -qw wheel; then
-    echo "===================================================="
-    echo "ERROR: ${USERNAME} is not in the 'wheel' group — every"
-    echo "package install below will fail because of this."
-    echo "===================================================="
-    exit 1
-fi
+# thin sudo->doas shim so makepkg/yay (which call "sudo" internally) keep working
+mkdir -p /usr/local/bin
+cat > /usr/local/bin/sudo <<'SUDOSHIM'
+#!/bin/sh
+exec doas "$@"
+SUDOSHIM
+chmod +x /usr/local/bin/sudo
+
+# tell makepkg to use doas natively too
+sed -i "s/^#PACMAN_AUTH=.*/PACMAN_AUTH=(doas)/" /etc/makepkg.conf 2>/dev/null || \
+    echo 'PACMAN_AUTH=(doas)' >> /etc/makepkg.conf
 
 # add Arch repos (extra + multilib)
 pacman -S --noconfirm artix-archlinux-support
@@ -421,15 +416,13 @@ else
 fi
 
 # build yay (temporarily allow passwordless wheel for unattended build steps)
-cat > /etc/sudoers.d/20-wheel-nopass <<'SUDOERS'
-%wheel ALL=(ALL:ALL) NOPASSWD: ALL
-SUDOERS
-chmod 0440 /etc/sudoers.d/20-wheel-nopass
-visudo -cf /etc/sudoers.d/20-wheel-nopass || { echo "ERROR: nopass sudoers drop-in failed validation"; exit 1; }
+cat > /etc/doas.conf <<'DOASCONF'
+permit nopass :wheel
+DOASCONF
+chmod 0400 /etc/doas.conf
 
 su - "${USERNAME}" -c "cd ~ && git clone https://aur.archlinux.org/yay-bin.git && cd yay-bin && makepkg -si --noconfirm" \
     || echo "WARNING: yay install failed, you can retry manually later."
-# yay uses sudo by default, no extra config needed
 
 # dwl setup
 cat > /home/${USERNAME}/dwl-install.sh <<'DWLSCRIPT'
@@ -446,8 +439,7 @@ usbmount xdg-desktop-portal-no-systemd-rtkit xdg-desktop-portal-wlr qt5-wayland 
 obs-studio qutebrowser"
 
 for pkg in \$DWL_PKGS; do
-    yay -S --needed --noconfirm "\$pkg" \
-        || echo "WARNING: failed to install \$pkg, skipping."
+    yay -S --needed --noconfirm "\$pkg" || echo "WARNING: failed to install \$pkg, skipping."
 done
 DWLSCRIPT
 chown ${USERNAME}:${USERNAME} /home/${USERNAME}/dwl-install.sh
@@ -505,10 +497,11 @@ else
     echo "WARNING: /etc/usbmount/usbmount.conf not found, usbmount may not be installed correctly."
 fi
 
-# restore normal (password-required) sudo policy: just remove the
-# temporary nopass drop-in, the base 10-wheel rule (password required)
-# is still in place and takes over immediately
-rm -f /etc/sudoers.d/20-wheel-nopass
+# restore normal (password-required) doas policy
+cat > /etc/doas.conf <<'DOASCONF'
+permit persist :wheel
+DOASCONF
+chmod 0400 /etc/doas.conf
 
 # seatd for dwl
 ln -sf /etc/runit/sv/seatd /etc/runit/runsvdir/default/ 2>/dev/null || true
@@ -520,25 +513,6 @@ else
     grub-install --target=i386-pc ${DISK}
 fi
 grub-mkconfig -o /boot/grub/grub.cfg
-
-# install & configure doas as the day-to-day privilege tool once the
-# system is fully built and stable. sudo (already configured above)
-# stays installed as a fallback for anything that hardcodes "sudo" —
-# it just won't be the one you reach for. This is done directly as
-# root here (not via repeated su -c calls like the automated install
-# steps above), so it's not exposed to the non-interactive doas issues
-# that showed up earlier.
-pacman -S --needed --noconfirm opendoas \
-    || echo "WARNING: opendoas install failed, install it manually later."
-if command -v doas >/dev/null 2>&1; then
-    cat > /etc/doas.conf <<'DOASCONF'
-permit persist :wheel
-DOASCONF
-    chmod 0400 /etc/doas.conf
-    echo "doas configured for the wheel group."
-else
-    echo "WARNING: doas binary not found after install, skipping doas.conf setup."
-fi
 EOF
 
 chmod +x /mnt/root/chroot-setup.sh
