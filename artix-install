@@ -14,20 +14,13 @@ CONFIG_DIRS=(cava foot mako nnn nvim qutebrowser scripts)
 THEME_NAME="tokyonight"
 THEME_FONT="FiraCode Nerd Font Propo Bold 15"
 
-# ensure DNS resolution works in the live environment. The live ISO's
-# resolv.conf sometimes ends up with no nameserver (empty except for
-# comments), which breaks basestrap/pacman/git with "Could not resolve
-# host" errors even though the link itself is up. Force a working
-# resolver up front so the rest of the script (and its network calls)
-# doesn't fail, and so there's no need to fix this by hand with
-# nmtui/nvim. Networking here is handled by iwd/iwctl, not
-# NetworkManager, so nmtui isn't installed and isn't used at any point.
 info "Setting DNS nameserver to 1.1.1.1 ..."
 rm -f /etc/resolv.conf 2>/dev/null || true
 cat > /etc/resolv.conf <<RESOLV
 nameserver 1.1.1.1
 nameserver 1.0.0.1
 RESOLV
+chattr +i /etc/resolv.conf 2>/dev/null || warn "chattr +i on /etc/resolv.conf failed, DNS may get reset mid-install if NetworkManager is running"
 
 # ensure parted is available
 if ! command -v parted >/dev/null 2>&1; then
@@ -331,11 +324,12 @@ EnableNetworkConfiguration=true
 NameResolvingService=resolvconf
 IWD
 
-# fallback DNS for first boot
 rm -f /etc/resolv.conf 2>/dev/null || true
 cat > /etc/resolv.conf <<RESOLV
 nameserver 1.1.1.1
+nameserver 1.0.0.1
 RESOLV
+chattr +i /etc/resolv.conf 2>/dev/null || echo "WARNING: chattr +i on /etc/resolv.conf failed, DNS may be reset mid-install"
 
 mkdir -p /etc/runit/runsvdir/default
 ln -sf /etc/runit/sv/dbus /etc/runit/runsvdir/default/ 2>/dev/null || true
@@ -410,9 +404,6 @@ for pkg in \$GPU_PKGS; do
     pacman -S --needed --noconfirm "\$pkg" || echo "WARNING: failed to install \$pkg, skipping."
 done
 
-# build & install dwl from local source (compositor + slstatus, with your
-# local patches already applied to config.def.h). Runs as root inside the
-# chroot, no AUR/makepkg needed for this part.
 if [ -d /root/dwl-src ]; then
     echo "Installing dwl build dependencies ..."
     pacman -S --needed --noconfirm \
@@ -502,10 +493,6 @@ if [ -d /root/theme-src ]; then
     chown -R ${USERNAME}:${USERNAME} "/home/${USERNAME}/.local/share/themes"
     rm -rf /root/theme-src
 
-    # nwg-look has no config file of its own for gtk-theme/font/prefer-dark,
-    # it reads and writes those straight to gsettings (dconf), so that's
-    # what we set here. dbus-run-session gives dconf a session bus to talk
-    # to since there's no session running yet inside the chroot.
     su - "${USERNAME}" -c "dbus-run-session -- bash -c '
         gsettings set org.gnome.desktop.interface gtk-theme \"${THEME_NAME}\" &&
         gsettings set org.gnome.desktop.interface color-scheme \"prefer-dark\" &&
@@ -525,9 +512,6 @@ fi
 su - "${USERNAME}" -c "sh -c \"\$(curl -Ls https://raw.githubusercontent.com/jarun/nnn/master/plugins/getplugs)\"" \
     || echo "WARNING: nnn plugin install failed, run 'getplugs' manually later."
 
-# ble.sh (bash equivalent of zsh-autosuggestions + fast-syntax-highlighting,
-# loaded from ~/.bashrc); pre-install it here so first login doesn't have
-# to build it on the spot
 su - "${USERNAME}" -c 'src=$(mktemp -d) \
     && git clone --recursive --depth 1 https://github.com/akinomyoga/ble.sh.git "$src" \
     && make -C "$src" install PREFIX="$HOME/.local" \
@@ -543,14 +527,13 @@ else
     echo "WARNING: /etc/usbmount/usbmount.conf not found, usbmount may not be installed correctly."
 fi
 
-# restore normal (password-required) sudo policy: just remove the
-# temporary nopass drop-in, the base 10-wheel rule (password required)
-# is still in place and takes over immediately
 rm -f /etc/sudoers.d/20-wheel-nopass
 
 # seatd for dwl
 ln -sf /etc/runit/sv/seatd /etc/runit/runsvdir/default/ 2>/dev/null || true
 usermod -aG seat "${USERNAME}"
+
+chattr -i /etc/resolv.conf 2>/dev/null || echo "WARNING: chattr -i on /etc/resolv.conf failed, remove the immutable flag manually after first boot if DNS doesn't update."
 
 if [ -d /sys/firmware/efi/efivars ]; then
     grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=Artix
