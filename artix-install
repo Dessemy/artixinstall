@@ -406,6 +406,14 @@ if [ -d /root/dwl-src ]; then
         || echo "WARNING: failed to install dwl build deps, build below may fail."
 
     echo "Building dwl (make clean install) ..."
+    ( cd /root/dwl-src && \
+      WPROTO_DIR="\$(pkg-config --variable=pkgdatadir wayland-protocols)" && \
+      if [ ! -f "\$WPROTO_DIR/staging/cursor-shape/cursor-shape-v1.xml" ] && \
+         [ -f "\$WPROTO_DIR/stable/cursor-shape/cursor-shape-v1.xml" ]; then
+          echo "NOTE: cursor-shape-v1 protocol has moved from staging/ to stable/"
+          echo "      in this wayland-protocols version, patching Makefile ..."
+          sed -i 's#staging/cursor-shape#stable/cursor-shape#g' Makefile
+      fi )
     if ! ( cd /root/dwl-src && make clean install ) 2>&1 | tee /root/dwl-build.log; then
         echo "===================================================="
         echo "ERROR: dwl build/install failed. Full log above and"
