@@ -237,6 +237,24 @@ chmod +x /usr/local/bin/sudo
 # tell makepkg to use doas natively too
 sed -i "s/^#PACMAN_AUTH=.*/PACMAN_AUTH=(doas)/" /etc/makepkg.conf 2>/dev/null || \
     echo 'PACMAN_AUTH=(doas)' >> /etc/makepkg.conf
+grep -q '^PACMAN_AUTH=(doas)' /etc/makepkg.conf || echo 'PACMAN_AUTH=(doas)' >> /etc/makepkg.conf
+
+# sanity check: doas must actually be able to run a command as the new user
+# before we spend the next 40+ package installs failing silently on it.
+# ("doas: : command not found" for every single yay/pacman call is the
+# tell-tale sign of this being broken, not a per-package issue.)
+if ! su - "${USERNAME}" -c "doas whoami" >/tmp/doas-check.log 2>&1; then
+    echo "===================================================="
+    echo "ERROR: doas is broken for ${USERNAME} — every package"
+    echo "install below will fail the same way. Output was:"
+    cat /tmp/doas-check.log
+    echo "===================================================="
+    echo "Check: is ${USERNAME} really in the 'wheel' group?"
+    echo "  -> getent group wheel"
+    echo "Check: does /etc/doas.conf parse ok?"
+    echo "  -> doas -C /etc/doas.conf"
+    exit 1
+fi
 
 # add Arch repos (extra + multilib)
 pacman -S --noconfirm artix-archlinux-support
@@ -424,6 +442,19 @@ chmod 0400 /etc/doas.conf
 su - "${USERNAME}" -c "cd ~ && git clone https://aur.archlinux.org/yay-bin.git && cd yay-bin && makepkg -si --noconfirm" \
     || echo "WARNING: yay install failed, you can retry manually later."
 
+# force yay to use doas explicitly rather than relying on its own
+# auto-detection, which is unreliable in this non-interactive chroot
+# environment and produces "doas: : command not found" for every package.
+mkdir -p "/home/${USERNAME}/.config/yay"
+cat > "/home/${USERNAME}/.config/yay/config.json" <<'YAYCONF'
+{
+    "sudoBin": "doas",
+    "sudoFlags": "",
+    "sudoLoop": false
+}
+YAYCONF
+chown -R ${USERNAME}:${USERNAME} "/home/${USERNAME}/.config/yay"
+
 # dwl setup
 cat > /home/${USERNAME}/dwl-install.sh <<'DWLSCRIPT'
 #!/bin/bash
@@ -439,7 +470,8 @@ usbmount xdg-desktop-portal-no-systemd-rtkit xdg-desktop-portal-wlr qt5-wayland 
 obs-studio qutebrowser"
 
 for pkg in \$DWL_PKGS; do
-    yay -S --needed --noconfirm "\$pkg" || echo "WARNING: failed to install \$pkg, skipping."
+    yay -S --needed --noconfirm --sudo doas --sudoflags "" "\$pkg" \
+        || echo "WARNING: failed to install \$pkg, skipping."
 done
 DWLSCRIPT
 chown ${USERNAME}:${USERNAME} /home/${USERNAME}/dwl-install.sh
