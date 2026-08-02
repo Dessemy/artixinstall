@@ -402,7 +402,7 @@ if [ -d /root/dwl-src ]; then
     echo "Installing dwl build dependencies ..."
     pacman -S --needed --noconfirm \
         wayland wayland-protocols pkgconf \
-        libxkbcommon libinput pixman fcft wlroots0.19 \
+        libxkbcommon libinput pixman fcft tllist wlroots0.19 \
         || echo "WARNING: failed to install dwl build deps, build below may fail."
 
     echo "Building dwl (make clean install) ..."
