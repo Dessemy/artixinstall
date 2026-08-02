@@ -177,7 +177,7 @@ BASESTRAP_PKGS="base base-devel elogind-runit dbus-runit \
     bluez bluez-utils bluez-runit \
     mpd \
     git wget curl rsync unzip zip tar reflector \
-    neovim opendoas bash-completion \
+    neovim sudo bash-completion \
     tree less pciutils usbutils"
 BASESTRAP_OK=0
 for i in 1 2 3; do
@@ -220,23 +220,28 @@ HOSTS
 useradd -m -G wheel -s /bin/bash "${USERNAME}"
 echo "${USERNAME}:${USER_PASS}" | chpasswd
 
-# doas config (replaces sudo)
-cat > /etc/doas.conf <<'DOASCONF'
-permit persist :wheel
-DOASCONF
-chmod 0400 /etc/doas.conf
+# sudo config: wheel group needs a password by default, via a drop-in
+# file (never edit /etc/sudoers directly — a syntax error there can lock
+# out all privilege escalation, a drop-in is validated independently)
+mkdir -p /etc/sudoers.d
+cat > /etc/sudoers.d/10-wheel <<'SUDOERS'
+%wheel ALL=(ALL:ALL) ALL
+SUDOERS
+chmod 0440 /etc/sudoers.d/10-wheel
+visudo -cf /etc/sudoers.d/10-wheel || { echo "ERROR: /etc/sudoers.d/10-wheel failed validation"; exit 1; }
 
-# thin sudo->doas shim so makepkg/yay (which call "sudo" internally) keep working
-mkdir -p /usr/local/bin
-cat > /usr/local/bin/sudo <<'SUDOSHIM'
-#!/bin/sh
-exec doas "$@"
-SUDOSHIM
-chmod +x /usr/local/bin/sudo
-
-# tell makepkg to use doas natively too
-sed -i "s/^#PACMAN_AUTH=.*/PACMAN_AUTH=(doas)/" /etc/makepkg.conf 2>/dev/null || \
-    echo 'PACMAN_AUTH=(doas)' >> /etc/makepkg.conf
+# sanity check: confirm the user is actually in wheel and the sudoers
+# drop-in is valid. We can't test an unattended privileged sudo call yet
+# (the default policy correctly still requires a password at this point),
+# so we check the two things that would make every later sudo call fail:
+# group membership and sudoers syntax.
+if ! id -nG "${USERNAME}" | grep -qw wheel; then
+    echo "===================================================="
+    echo "ERROR: ${USERNAME} is not in the 'wheel' group — every"
+    echo "package install below will fail because of this."
+    echo "===================================================="
+    exit 1
+fi
 
 # add Arch repos (extra + multilib)
 pacman -S --noconfirm artix-archlinux-support
@@ -331,8 +336,8 @@ mkdir -p "/home/${USERNAME}/Music" \
     "/home/${USERNAME}/.cache/mpd"
 chown -R ${USERNAME}:${USERNAME} \
     "/home/${USERNAME}/Music" \
-    "/home/${USERNAME}/.local/share/mpd" \
-    "/home/${USERNAME}/.cache/mpd"
+    "/home/${USERNAME}/.local" \
+    "/home/${USERNAME}/.cache"
 
 # wallpaper folder, used by swaybg + the "walls" (fzf) picker script
 mkdir -p "/home/${USERNAME}/Pictures/Wallpapers"
@@ -401,28 +406,45 @@ if [ -d /root/dwl-src ]; then
         || echo "WARNING: failed to install dwl build deps, build below may fail."
 
     echo "Building dwl (make clean install) ..."
-    ( cd /root/dwl-src && make clean install ) \
-        || echo "WARNING: dwl build/install failed, check dependencies/patches."
+    if ! ( cd /root/dwl-src && make clean install ) 2>&1 | tee /root/dwl-build.log; then
+        echo "===================================================="
+        echo "ERROR: dwl build/install failed. Full log above and"
+        echo "saved at /root/dwl-build.log (still readable after"
+        echo "chroot exits, at /mnt/root/dwl-build.log from the live"
+        echo "environment). Common cause: the wlroots version in the"
+        echo "Artix repos doesn't match what dwl's source/patches"
+        echo "expect — check dwl's config.mk / README for the wlroots"
+        echo "version it was written against."
+        echo "===================================================="
+        exit 1
+    fi
 
     if [ -d /root/dwl-src/slstatus ]; then
         echo "Building slstatus (make clean install) ..."
         ( cd /root/dwl-src/slstatus && make clean install ) \
-            || echo "WARNING: slstatus build/install failed."
+            || echo "WARNING: slstatus build/install failed (non-critical, dwl itself already installed)."
     fi
+
+    command -v dwl >/dev/null 2>&1 || { echo "ERROR: dwl command still not found on PATH after install."; exit 1; }
+    echo "dwl installed successfully: $(command -v dwl)"
 
     rm -rf /root/dwl-src
 else
-    echo "WARNING: /root/dwl-src not staged, dwl was not built from source."
+    echo "ERROR: /root/dwl-src not staged — dwl source folder wasn't found next to"
+    echo "the install script. Without dwl there is no window manager, aborting."
+    exit 1
 fi
 
 # build yay (temporarily allow passwordless wheel for unattended build steps)
-cat > /etc/doas.conf <<'DOASCONF'
-permit nopass :wheel
-DOASCONF
-chmod 0400 /etc/doas.conf
+cat > /etc/sudoers.d/20-wheel-nopass <<'SUDOERS'
+%wheel ALL=(ALL:ALL) NOPASSWD: ALL
+SUDOERS
+chmod 0440 /etc/sudoers.d/20-wheel-nopass
+visudo -cf /etc/sudoers.d/20-wheel-nopass || { echo "ERROR: nopass sudoers drop-in failed validation"; exit 1; }
 
 su - "${USERNAME}" -c "cd ~ && git clone https://aur.archlinux.org/yay-bin.git && cd yay-bin && makepkg -si --noconfirm" \
     || echo "WARNING: yay install failed, you can retry manually later."
+# yay uses sudo by default, no extra config needed
 
 # dwl setup
 cat > /home/${USERNAME}/dwl-install.sh <<'DWLSCRIPT'
@@ -439,7 +461,8 @@ usbmount xdg-desktop-portal-no-systemd-rtkit xdg-desktop-portal-wlr qt5-wayland 
 obs-studio qutebrowser"
 
 for pkg in \$DWL_PKGS; do
-    yay -S --needed --noconfirm "\$pkg" || echo "WARNING: failed to install \$pkg, skipping."
+    yay -S --needed --noconfirm "\$pkg" \
+        || echo "WARNING: failed to install \$pkg, skipping."
 done
 DWLSCRIPT
 chown ${USERNAME}:${USERNAME} /home/${USERNAME}/dwl-install.sh
@@ -497,15 +520,21 @@ else
     echo "WARNING: /etc/usbmount/usbmount.conf not found, usbmount may not be installed correctly."
 fi
 
-# restore normal (password-required) doas policy
-cat > /etc/doas.conf <<'DOASCONF'
-permit persist :wheel
-DOASCONF
-chmod 0400 /etc/doas.conf
+# restore normal (password-required) sudo policy: just remove the
+# temporary nopass drop-in, the base 10-wheel rule (password required)
+# is still in place and takes over immediately
+rm -f /etc/sudoers.d/20-wheel-nopass
 
 # seatd for dwl
 ln -sf /etc/runit/sv/seatd /etc/runit/runsvdir/default/ 2>/dev/null || true
 usermod -aG seat "${USERNAME}"
+
+# remove NetworkManager if anything pulled it in as a dependency along
+# the way — networking is handled by iwd/iwctl instead, NetworkManager
+# is not needed and its nmtui/nm-applet binaries just cause confusion
+# if left behind unconfigured
+pacman -Rns --noconfirm networkmanager network-manager-applet nm-connection-editor 2>/dev/null \
+    || echo "NetworkManager was not installed, nothing to remove."
 
 if [ -d /sys/firmware/efi/efivars ]; then
     grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=Artix
