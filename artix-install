@@ -14,6 +14,21 @@ CONFIG_DIRS=(cava foot mako nnn nvim qutebrowser scripts)
 THEME_NAME="tokyonight"
 THEME_FONT="FiraCode Nerd Font Propo Bold 15"
 
+# ensure DNS resolution works in the live environment. The live ISO's
+# resolv.conf sometimes ends up with no nameserver (empty except for
+# comments), which breaks basestrap/pacman/git with "Could not resolve
+# host" errors even though the link itself is up. Force a working
+# resolver up front so the rest of the script (and its network calls)
+# doesn't fail, and so there's no need to fix this by hand with
+# nmtui/nvim. Networking here is handled by iwd/iwctl, not
+# NetworkManager, so nmtui isn't installed and isn't used at any point.
+info "Setting DNS nameserver to 1.1.1.1 ..."
+rm -f /etc/resolv.conf 2>/dev/null || true
+cat > /etc/resolv.conf <<RESOLV
+nameserver 1.1.1.1
+nameserver 1.0.0.1
+RESOLV
+
 # ensure parted is available
 if ! command -v parted >/dev/null 2>&1; then
     info "parted not found, installing ..."
