@@ -348,7 +348,6 @@ chown -R ${USERNAME}:${USERNAME} \
     "/home/${USERNAME}/.local" \
     "/home/${USERNAME}/.cache"
 
-# wallpaper folder, used by swaybg + the "walls" (fzf) picker script
 mkdir -p "/home/${USERNAME}/Pictures/Wallpapers"
 chown -R ${USERNAME}:${USERNAME} "/home/${USERNAME}/Pictures"
 
