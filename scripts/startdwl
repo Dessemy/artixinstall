@@ -1,4 +1,4 @@
-#!/bin/sh
+]#!/bin/sh
 
 rfkill unblock all
 
@@ -12,7 +12,10 @@ exec dbus-run-session -- sh -c '
 
 	CLIPSTART="wl-paste --type text --watch cliphist store & wl-paste --type image --watch cliphist store &"
 
+	WALLPAPER="$(cat "$HOME/.cache/current_wallpaper" 2>/dev/null || echo "$HOME/Pictures/Wallpapers/default.jpg")"
+	WALLSTART="swaybg -i \"$WALLPAPER\" -m fill &"
+
 	trap "kill \$PW_PID \$PWPULSE_PID \$WP_PID 2>/dev/null" EXIT
 
-	slstatus -s | dwl -s "$CLIPSTART"
+	slstatus -s | dwl -s "$CLIPSTART $WALLSTART"
 '
