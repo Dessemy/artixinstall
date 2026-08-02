@@ -458,7 +458,7 @@ ttf-firacode-nerd noto-fonts noto-fonts-cjk noto-fonts-emoji
 starship zoxide jq fd fzf fastfetch eza bat ripgrep imagemagick ffmpeg 7zip
 nnn ueberzugpp chafa ffmpegthumbnailer poppler mediainfo bluetui impala wiremix cava ttyper mpv rmpc mpc
 brightnessctl playerctl libnotify gotop tlp tlp-rdw
-nwg-look dconf gsettings-desktop-schemas
+nwg-look dconf gsettings-desktop-schemas hyprpicker
 wireguard-tools grim slurp nodejs npm waylock github-cli
 usbmount xdg-desktop-portal-no-systemd-rtkit xdg-desktop-portal-wlr qt5-wayland qt6-wayland
 obs-studio qutebrowser"
