@@ -537,13 +537,6 @@ rm -f /etc/sudoers.d/20-wheel-nopass
 ln -sf /etc/runit/sv/seatd /etc/runit/runsvdir/default/ 2>/dev/null || true
 usermod -aG seat "${USERNAME}"
 
-# remove NetworkManager if anything pulled it in as a dependency along
-# the way — networking is handled by iwd/iwctl instead, NetworkManager
-# is not needed and its nmtui/nm-applet binaries just cause confusion
-# if left behind unconfigured
-pacman -Rns --noconfirm networkmanager network-manager-applet nm-connection-editor 2>/dev/null \
-    || echo "NetworkManager was not installed, nothing to remove."
-
 if [ -d /sys/firmware/efi/efivars ]; then
     grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=Artix
 else
