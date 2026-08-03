@@ -378,6 +378,7 @@ auto_update         "yes"
 
 input {
         plugin "curl"
+}
 
 audio_output {
     type "pipewire"
