@@ -395,6 +395,22 @@ pgrep -x mpd >/dev/null || mpd >/dev/null 2>&1
 MPDAUTOSTART
 fi
 
+# xdg-desktop-portal: tell the generic portal to prefer the wlroots backend
+# (xdg-desktop-portal-wlr) for this session. Without this file, screen
+# sharing/recording (OBS "Screen Capture (PipeWire)", browser screen share,
+# etc.) silently fails to find any capture sources under dwl, because the
+# generic portal has no systemd user service to auto-discover backends and
+# falls back to nothing.
+if [ ! -f "/home/${USERNAME}/.config/xdg-desktop-portal/wlroots-portals.conf" ]; then
+    mkdir -p "/home/${USERNAME}/.config/xdg-desktop-portal"
+    cat > "/home/${USERNAME}/.config/xdg-desktop-portal/wlroots-portals.conf" <<'PORTALCONF'
+[preferred]
+default=wlr
+PORTALCONF
+    chown -R ${USERNAME}:${USERNAME} "/home/${USERNAME}/.config/xdg-desktop-portal"
+    echo "  wrote ~/.config/xdg-desktop-portal/wlroots-portals.conf (default=wlr)"
+fi
+
 # driver install
 GPU_INFO=\$(lspci -nnk | grep -Ei "VGA compatible controller|3D controller|Display controller")
 echo "Detected GPU(s):"
