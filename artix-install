@@ -370,7 +370,7 @@ if [ ! -f "/home/${USERNAME}/.config/mpd/mpd.conf" ]; then
     mkdir -p "/home/${USERNAME}/.config/mpd"
     cat > "/home/${USERNAME}/.config/mpd/mpd.conf" <<MPDCONF
 music_directory     "~/Music"
-playlist_directory  "~/Music/playlists"
+playlist_directory  "~/Music/playlist"
 db_file             "~/Music/database"
 
 bind_to_address     "127.0.0.1"
