@@ -1,6 +1,9 @@
-]#!/bin/sh
+#!/bin/sh
 
 rfkill unblock all
+
+export XDG_CURRENT_DESKTOP=wlroots
+export XDG_SESSION_TYPE=wayland
 
 exec dbus-run-session -- sh -c '
 	pipewire &
@@ -10,12 +13,17 @@ exec dbus-run-session -- sh -c '
 	wireplumber &
 	WP_PID=$!
 
+	/usr/lib/xdg-desktop-portal-wlr &
+	PORTALWLR_PID=$!
+	/usr/lib/xdg-desktop-portal &
+	PORTAL_PID=$!
+
 	CLIPSTART="wl-paste --type text --watch cliphist store & wl-paste --type image --watch cliphist store &"
 
 	WALLPAPER="$(cat "$HOME/.cache/current_wallpaper" 2>/dev/null || echo "$HOME/Pictures/Wallpapers/default.jpg")"
 	WALLSTART="swaybg -i \"$WALLPAPER\" -m fill &"
 
-	trap "kill \$PW_PID \$PWPULSE_PID \$WP_PID 2>/dev/null" EXIT
+	trap "kill \$PW_PID \$PWPULSE_PID \$WP_PID \$PORTALWLR_PID \$PORTAL_PID 2>/dev/null" EXIT
 
 	slstatus -s | dwl -s "$CLIPSTART $WALLSTART"
 '
