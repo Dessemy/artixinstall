@@ -10,7 +10,7 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 [ "$(id -u)" -eq 0 ] || error "Run as root."
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_DIRS=(cava dwl foot rmpc mako nnn nvim qutebrowser scripts yazi)
+CONFIG_DIRS=(cava dwl foot rmpc mako nvim qutebrowser scripts yazi)
 THEME_NAME="tokyonight"
 THEME_FONT="FiraCode Nerd Font Propo Bold 15"
 
@@ -473,7 +473,7 @@ DWL_PKGS="foot wmenu mako cliphist swaybg wl-clipboard seatd seatd-runit
 xorg-xwayland
 ttf-firacode-nerd noto-fonts noto-fonts-cjk noto-fonts-emoji yazi
 starship zoxide jq fd fzf fastfetch eza bat ripgrep imagemagick ffmpeg 7zip
-nnn ueberzugpp chafa ffmpegthumbnailer poppler mediainfo bluetui impala wiremix cava ttyper mpv rmpc mpc
+ueberzugpp chafa ffmpegthumbnailer poppler mediainfo bluetui impala wiremix cava ttyper mpv rmpc mpc
 brightnessctl playerctl libnotify gotop tlp tlp-rdw
 nwg-look dconf gsettings-desktop-schemas hyprpicker
 wireguard-tools grim slurp nodejs npm waylock github-cli
@@ -514,10 +514,6 @@ else
     echo "WARNING: /root/theme-src not staged, tokyonight theme was not installed."
 fi
 
-# nnn plugins (adds the preview-tui plugin used by NNN_PLUG above)
-su - "${USERNAME}" -c "sh -c \"\$(curl -Ls https://raw.githubusercontent.com/jarun/nnn/master/plugins/getplugs)\"" \
-    || echo "WARNING: nnn plugin install failed, run 'getplugs' manually later."
-
 su - "${USERNAME}" -c 'src=$(mktemp -d) \
     && git clone --recursive --depth 1 https://github.com/akinomyoga/ble.sh.git "$src" \
     && make -C "$src" install PREFIX="$HOME/.local" \
@@ -540,6 +536,14 @@ ln -sf /etc/runit/sv/seatd /etc/runit/runsvdir/default/ 2>/dev/null || true
 usermod -aG seat "${USERNAME}"
 
 chattr -i /etc/resolv.conf 2>/dev/null || echo "WARNING: chattr -i on /etc/resolv.conf failed, remove the immutable flag manually after first boot if DNS doesn't update."
+
+# grub: no boot delay, no menu flash
+sed -i 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=0/' /etc/default/grub
+if grep -q '^GRUB_TIMEOUT_STYLE=' /etc/default/grub; then
+    sed -i 's/^GRUB_TIMEOUT_STYLE=.*/GRUB_TIMEOUT_STYLE=hidden/' /etc/default/grub
+else
+    echo 'GRUB_TIMEOUT_STYLE=hidden' >> /etc/default/grub
+fi
 
 if [ -d /sys/firmware/efi/efivars ]; then
     grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=Artix
