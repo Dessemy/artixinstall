@@ -10,7 +10,7 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 [ "$(id -u)" -eq 0 ] || error "Run as root."
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_DIRS=(cava dwl foot rmpc mako nnn nvim qutebrowser scripts)
+CONFIG_DIRS=(cava dwl foot rmpc mako nnn nvim qutebrowser scripts yazi)
 THEME_NAME="tokyonight"
 THEME_FONT="FiraCode Nerd Font Propo Bold 15"
 
@@ -471,7 +471,7 @@ cat > /home/${USERNAME}/dwl-install.sh <<'DWLSCRIPT'
 #!/bin/bash
 DWL_PKGS="foot wmenu mako cliphist swaybg wl-clipboard seatd seatd-runit
 xorg-xwayland
-ttf-firacode-nerd noto-fonts noto-fonts-cjk noto-fonts-emoji
+ttf-firacode-nerd noto-fonts noto-fonts-cjk noto-fonts-emoji yazi
 starship zoxide jq fd fzf fastfetch eza bat ripgrep imagemagick ffmpeg 7zip
 nnn ueberzugpp chafa ffmpegthumbnailer poppler mediainfo bluetui impala wiremix cava ttyper mpv rmpc mpc
 brightnessctl playerctl libnotify gotop tlp tlp-rdw
