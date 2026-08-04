@@ -35,7 +35,7 @@ HISTFILESIZE=100000
 HISTCONTROL=ignoredups:ignorespace
 shopt -s histappend
 shopt -s cmdhist
-PROMPT_COMMAND="history -a; history -c; history -r; ${PROMPT_COMMAND}"
+PROMPT_COMMAND="history -a; ${PROMPT_COMMAND}"
 
 # ---- shell options ----
 shopt -s autocd 2>/dev/null      # like zsh AUTOCD
