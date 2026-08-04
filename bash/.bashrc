@@ -15,9 +15,6 @@ fi
 
 export GPG_TTY=$(tty)
 
-export NNN_PLUG='p:preview-tui'
-export NNN_FIFO='/tmp/nnn.fifo'
-
 export PATH="$HOME/.local/bin:$HOME/.config/scripts:$PATH"
 
 case $- in
