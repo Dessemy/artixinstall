@@ -109,36 +109,19 @@ static const enum libinput_config_tap_button_map button_map = LIBINPUT_CONFIG_TA
 #define SHCMD(cmd) { .v = (const char*[]){ "/bin/sh", "-c", cmd, NULL } }
 
 static const char *termcmd[]         = { "foot", NULL };
-static const char *wmenucmd[] = {
-    "wmenu-run",
-    "-f", "FiraCode Nerd Font Propo Bold 18",
-    "-l", "10",
-    "-N", "1a1b26", "-n", "a9b1d6",
-    "-M", "7aa2f7", "-m", "1a1b26",
-    "-S", "0db9d7", "-s", "1a1b26",
-    NULL
-};
 static const char *qutebrowsercmd[]  = { "qutebrowser", NULL };
 static const char *hyprpickercmd[]   = { "hyprpicker", NULL };
 
-static const char *lockcmd[] = {
-	"waylock",
-	"-init-color", "0x1a1b26",
-	"-input-color", "0x7aa2f7",
-	"-input-alt-color", "0xad8ee6",
-	"-fail-color", "0xf7768e",
-	"-fork-on-lock",
-	NULL
-};
-
 static const Key keys[] = {
-	{ MODKEY,                              XKB_KEY_Tab,            spawn,            {.v = wmenucmd} },
+	{ MODKEY,                              XKB_KEY_Tab,            spawn,            SHCMD("foot -e $HOME/.config/scripts/launcher") },
+	{ MODKEY,                              XKB_KEY_Escape,         spawn,            SHCMD("foot -e $HOME/.config/scripts/powermenu") },
+	{ MODKEY|WLR_MODIFIER_SHIFT,           XKB_KEY_W,              spawn,            SHCMD("foot -e $HOME/.config/scripts/walls") },
 	{ MODKEY,                              XKB_KEY_q,              spawn,            {.v = qutebrowsercmd} },
 	{ MODKEY,                              XKB_KEY_p,              spawn,            {.v = hyprpickercmd} },
 	{ MODKEY,                              XKB_KEY_Return,         spawn,            {.v = termcmd} },
   { MODKEY,                              XKB_KEY_s,              spawn,            SHCMD("$HOME/.config/scripts/snip full") },
   { MODKEY|WLR_MODIFIER_CTRL,            XKB_KEY_s,              spawn,            SHCMD("$HOME/.config/scripts/snip area") },
-	{ MODKEY,                              XKB_KEY_y,              spawn,            SHCMD("foot -e nnn") },
+	{ MODKEY,                              XKB_KEY_y,              spawn,            SHCMD("foot -e yazi") },
 	{ MODKEY,                              XKB_KEY_v,              spawn,            SHCMD("foot -e nvim") },
 	{ MODKEY,                              XKB_KEY_r,              spawn,            SHCMD("foot -e rmpc") },
 	{ MODKEY,                              XKB_KEY_g,              spawn,            SHCMD("foot -e gotop") },
@@ -147,10 +130,7 @@ static const Key keys[] = {
 	{ MODKEY,                              XKB_KEY_t,              spawn,            SHCMD("foot -e ttyper") },
 	{ MODKEY,                              XKB_KEY_w,              spawn,            SHCMD("foot -e wiremix") },
 	{ MODKEY,                              XKB_KEY_i,              spawn,            SHCMD("foot -e impala") },
-	{ MODKEY|WLR_MODIFIER_ALT,             XKB_KEY_c,              spawn,
-	  SHCMD("cliphist list | wmenu -i -l 10 "
-	        "-N 1a1b26 -n a9b1d6 -M 7aa2f7 -m 1a1b26 -S 0db9d7 -s 1a1b26 "
-	        "| cliphist decode | wl-copy") },
+	{ MODKEY|WLR_MODIFIER_ALT,             XKB_KEY_c,              spawn,            SHCMD("foot -e $HOME/.config/scripts/clipmenu") },
 
 	{ 0,                                   XKB_KEY_XF86MonBrightnessUp,   spawn,     SHCMD("brightnessctl set +5%") },
 	{ 0,                                   XKB_KEY_XF86MonBrightnessDown, spawn,     SHCMD("brightnessctl set 5%-") },
@@ -195,7 +175,6 @@ static const Key keys[] = {
 	TAGKEYS(          XKB_KEY_8, XKB_KEY_asterisk,                   7),
 	TAGKEYS(          XKB_KEY_9, XKB_KEY_parenleft,                  8),
 
-	{ MODKEY|WLR_MODIFIER_CTRL,            XKB_KEY_l,              spawn,            {.v = lockcmd} },
 	{ MODKEY|WLR_MODIFIER_SHIFT,           XKB_KEY_Q,              quit,             {0} },
 	{ WLR_MODIFIER_CTRL|WLR_MODIFIER_ALT,  XKB_KEY_Terminate_Server, quit,           {0} },
 
