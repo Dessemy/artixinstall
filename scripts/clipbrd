@@ -1,0 +1,16 @@
+#!/bin/sh
+set -e
+
+selected="$(cliphist list | fzf \
+    --prompt='Clipboard > ' \
+    --height=100% \
+    --layout=reverse \
+    --border=sharp \
+    --preview 'echo {}' \
+    --preview-window up:3:wrap:border-sharp)"
+
+[ -z "$selected" ] && exit 0
+
+cliphist decode <<< "$selected" | wl-copy
+
+command -v notify-send >/dev/null 2>&1 && notify-send "Clipboard" "Item copied"
