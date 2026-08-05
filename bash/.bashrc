@@ -1,4 +1,4 @@
-# ---- env ----
+=# ---- env ----
 export XDG_CONFIG_HOME="$HOME/.config"
 export XDG_CACHE_HOME="$HOME/.cache"
 export XDG_DATA_HOME="$HOME/.local/share"
@@ -67,10 +67,10 @@ export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
 export FZF_DEFAULT_OPTS='
   --height=60%
   --layout=reverse
-  --border=rounded
+  --border=sharp
   --prompt="  "
   --pointer="  "
-  --preview-window=right:65%:wrap:border-left
+  --preview-window=right,65%,wrap,border-sharp
 '
 export _FZF_PREVIEW_CMD='bat --color=always --style=plain,numbers --line-range=:500 {}'
 export FZF_CTRL_T_OPTS="--preview '$_FZF_PREVIEW_CMD'"
