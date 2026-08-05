@@ -1,0 +1,34 @@
+#!/bin/sh
+set -e
+
+WAYLOCK_OPTS="-init-color 0x1a1b26 -input-color 0x7aa2f7 -input-alt-color 0xad8ee6 -fail-color 0xf7768e"
+
+options="Lock\nLogout\nSuspend\nReboot\nShutdown"
+
+chosen=$(printf "$options" | fzf \
+    --prompt='Power > ' \
+    --height=100% \
+    --layout=reverse \
+    --border=sharp)
+
+[ -z "$chosen" ] && exit 0
+
+case "$chosen" in
+    Lock)
+        waylock $WAYLOCK_OPTS
+        ;;
+    Logout)
+        pkill -TERM -x dwl
+        ;;
+    Suspend)
+        waylock $WAYLOCK_OPTS &
+        sleep 1
+        loginctl suspend
+        ;;
+    Reboot)
+        loginctl reboot
+        ;;
+    Shutdown)
+        loginctl poweroff
+        ;;
+esac
