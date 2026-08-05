@@ -2,6 +2,8 @@
 
 rfkill unblock all
 
+brightnessctl set 1% >/dev/null 2>&1
+
 export XDG_CURRENT_DESKTOP=wlroots
 export XDG_SESSION_TYPE=wayland
 
