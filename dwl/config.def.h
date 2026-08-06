@@ -121,7 +121,7 @@ static const Key keys[] = {
 	{ MODKEY,                              XKB_KEY_Tab,            spawn,            SHCMD("foot -e $HOME/.config/scripts/launchr") },
 	{ MODKEY,                              XKB_KEY_Escape,         spawn,            SHCMD("foot -e $HOME/.config/scripts/pwermnu") },
 	{ MODKEY|WLR_MODIFIER_SHIFT,           XKB_KEY_W,              spawn,            SHCMD("foot -e $HOME/.config/scripts/walls") },
-    { MODKEY|WLR_MODIFIER_ALT,             XKB_KEY_c,              spawn,            SHCMD("foot -e $HOME/.config/scripts/clipbrd"),
+    { MODKEY|WLR_MODIFIER_ALT,             XKB_KEY_c,              spawn,            SHCMD("foot -e $HOME/.config/scripts/clipbrd") },
 	{ MODKEY,                              XKB_KEY_y,              spawn,            SHCMD("foot -e yazi") },
 	{ MODKEY,                              XKB_KEY_v,              spawn,            SHCMD("foot -e nvim") },
 	{ MODKEY,                              XKB_KEY_r,              spawn,            SHCMD("foot -e rmpc") },
@@ -147,9 +147,6 @@ static const Key keys[] = {
 	{ MODKEY|WLR_MODIFIER_SHIFT,           XKB_KEY_P,              incnmaster,       {.i = -1} },
 	{ MODKEY,                              XKB_KEY_h,              setmfact,         {.f = -0.05f} },
 	{ MODKEY,                              XKB_KEY_l,              setmfact,         {.f = +0.05f} },
-	{ MODKEY,                              XKB_KEY_u,              setlayout,        {.v = &layouts[0]} },
-	{ MODKEY,                              XKB_KEY_f,              setlayout,        {.v = &layouts[1]} },
-	{ MODKEY,                              XKB_KEY_m,              setlayout,        {.v = &layouts[2]} },
 	{ MODKEY,                              XKB_KEY_space,          cyclelayout,      {0} },
 	{ MODKEY|WLR_MODIFIER_SHIFT,           XKB_KEY_space,          togglefloating,   {0} },
 	{ MODKEY,                              XKB_KEY_e,              togglefullscreen, {0} },
@@ -166,7 +163,8 @@ static const Key keys[] = {
 	{ MODKEY|WLR_MODIFIER_SHIFT,           XKB_KEY_less,             tagmon,           {.i = WLR_DIRECTION_LEFT} },
 	{ MODKEY|WLR_MODIFIER_SHIFT,           XKB_KEY_greater,          tagmon,           {.i = WLR_DIRECTION_RIGHT} },
 	TAGKEYS(                               XKB_KEY_1,                XKB_KEY_exclam,                     0),
-	TAGKEYS(                               XKB_KEY_2,                XKB_KEY_numbersign,                 2),
+	TAGKEYS(                               XKB_KEY_2,                XKB_KEY_at,                         1),
+	TAGKEYS(                               XKB_KEY_3,                XKB_KEY_numbersign,                 2),
 	TAGKEYS(                               XKB_KEY_4,                XKB_KEY_dollar,                     3),
 	TAGKEYS(                               XKB_KEY_5,                XKB_KEY_percent,                    4),
 	TAGKEYS(                               XKB_KEY_6,                XKB_KEY_asciicircum,                5),
@@ -183,8 +181,6 @@ static const Key keys[] = {
 };
 
 static const Button buttons[] = {
-	{ ClkLtSymbol, 0,      BTN_LEFT,   setlayout,      {.v = &layouts[0]} },
-	{ ClkLtSymbol, 0,      BTN_RIGHT,  setlayout,      {.v = &layouts[2]} },
 	{ ClkTitle,    0,      BTN_MIDDLE, zoom,           {0} },
 	{ ClkStatus,   0,      BTN_MIDDLE, spawn,          {.v = termcmd} },
 	{ ClkClient,   MODKEY, BTN_LEFT,   moveresize,     {.ui = CurMove} },
