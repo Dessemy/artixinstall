@@ -1,0 +1,42 @@
+#!/bin/sh
+set -e
+
+APP_DIRS="/usr/share/applications $HOME/.local/share/applications"
+
+list_apps() {
+    for dir in $APP_DIRS; do
+        [ -d "$dir" ] || continue
+        for f in "$dir"/*.desktop; do
+            [ -f "$f" ] || continue
+            grep -q '^NoDisplay=true' "$f" && continue
+
+            name=$(grep -m1 '^Name=' "$f" | cut -d'=' -f2-)
+            exec_raw=$(grep -m1 '^Exec=' "$f" | cut -d'=' -f2-)
+
+            [ -z "$name" ] && continue
+            [ -z "$exec_raw" ] && continue
+
+            exec_clean=$(echo "$exec_raw" | sed -E 's/%[fFuUdDnNickvm]//g')
+
+            printf '%s\t%s\n' "$name" "$exec_clean"
+        done
+    done | sort -u -t"$(printf '\t')" -k1,1
+}
+
+chosen=$(list_apps | fzf \
+    --prompt='Launch > ' \
+    --height=100% \
+    --layout=reverse \
+    --border=sharp \
+    --with-nth=1 \
+    --delimiter='\t')
+
+[ -z "$chosen" ] && exit 0
+
+cmd=$(printf '%s' "$chosen" | cut -f2-)
+
+setsid -f sh -c "$cmd" >/dev/null 2>&1
+
+sleep 0.3
+
+exit 0
