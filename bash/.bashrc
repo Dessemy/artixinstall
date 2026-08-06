@@ -84,7 +84,7 @@ _fzf_file_no_hidden() {
 }
 
 # ---- aliases ----
-alias sdwl='~/.config/scripts/startdwl'
+alias sdwl='dbus-run-session ~/.config/scripts/startdwl'
 alias ls='eza --icons'
 alias ll='eza -lh --icons --git'
 alias la='eza -lah --icons --git'
