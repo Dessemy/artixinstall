@@ -401,14 +401,36 @@ GPU_INFO=\$(lspci -nnk | grep -Ei "VGA compatible controller|3D controller|Displ
 echo "Detected GPU(s):"
 echo "\$GPU_INFO"
 
+GPU_COUNT=\$(echo "\$GPU_INFO" | grep -Eic "VGA compatible controller|3D controller")
+HAS_NVIDIA=0; HAS_INTEL=0; HAS_AMD=0
+echo "\$GPU_INFO" | grep -qi nvidia   && HAS_NVIDIA=1
+echo "\$GPU_INFO" | grep -qi intel    && HAS_INTEL=1
+echo "\$GPU_INFO" | grep -Eqi "amd|ati|radeon" && HAS_AMD=1
+
+if [ "\$GPU_COUNT" -ge 2 ]; then
+    echo "Dual/hybrid GPU setup detected (\$GPU_COUNT GPUs)."
+else
+    echo "Single GPU detected."
+fi
+
 GPU_PKGS="mesa vulkan-icd-loader"
-echo "\$GPU_INFO" | grep -qi nvidia   && GPU_PKGS="\$GPU_PKGS nvidia-dkms nvidia-utils nvidia-settings opencl-nvidia"
-echo "\$GPU_INFO" | grep -qi intel    && GPU_PKGS="\$GPU_PKGS vulkan-intel intel-media-driver libva-intel-driver"
-echo "\$GPU_INFO" | grep -Eqi "amd|ati|radeon" && GPU_PKGS="\$GPU_PKGS xf86-video-amdgpu vulkan-radeon libva-mesa-driver"
+[ "\$HAS_NVIDIA" -eq 1 ] && GPU_PKGS="\$GPU_PKGS nvidia-dkms nvidia-utils nvidia-settings opencl-nvidia"
+[ "\$HAS_INTEL" -eq 1 ]  && GPU_PKGS="\$GPU_PKGS vulkan-intel intel-media-driver libva-intel-driver"
+[ "\$HAS_AMD" -eq 1 ]    && GPU_PKGS="\$GPU_PKGS xf86-video-amdgpu vulkan-radeon libva-mesa-driver"
 
 for pkg in \$GPU_PKGS; do
     pacman -S --needed --noconfirm "\$pkg" || echo "WARNING: failed to install \$pkg, skipping."
 done
+
+# remember the result for the GPU-switcher step below, which runs after
+# yay is built (envycontrol is AUR-only)
+if [ "\$GPU_COUNT" -ge 2 ] && [ "\$HAS_NVIDIA" -eq 1 ]; then
+    echo "hybrid-nvidia" > /root/.gpu-mode
+elif [ "\$GPU_COUNT" -ge 2 ]; then
+    echo "hybrid-other" > /root/.gpu-mode
+else
+    echo "single" > /root/.gpu-mode
+fi
 
 if [ -d /root/dwl-src ]; then
     echo "Installing dwl build dependencies ..."
@@ -465,6 +487,19 @@ visudo -cf /etc/sudoers.d/20-wheel-nopass || { echo "ERROR: nopass sudoers drop-
 su - "${USERNAME}" -c "cd ~ && git clone https://aur.archlinux.org/yay-bin.git && cd yay-bin && makepkg -si --noconfirm" \
     || echo "WARNING: yay install failed, you can retry manually later."
 # yay uses sudo by default, no extra config needed
+
+# GPU switcher: only needed for hybrid setups that include an Nvidia GPU
+# (e.g. Intel/AMD + Nvidia laptops). Installed here because envycontrol
+# is AUR-only and yay was just built above.
+if [ -f /root/.gpu-mode ] && [ "\$(cat /root/.gpu-mode)" = "hybrid-nvidia" ]; then
+    echo "Hybrid Nvidia GPU setup detected, installing envycontrol (GPU switcher) ..."
+    su - "${USERNAME}" -c "yay -S --needed --noconfirm envycontrol" \
+        || echo "WARNING: envycontrol install failed, install it manually later with: yay -S envycontrol"
+    echo "NOTE: switch GPU mode with 'sudo envycontrol -s integrated|nvidia|hybrid' then reboot."
+elif [ -f /root/.gpu-mode ] && [ "\$(cat /root/.gpu-mode)" = "hybrid-other" ]; then
+    echo "Dual GPU detected but no Nvidia GPU found, skipping GPU switcher (not needed for AMD/Intel-only hybrid, DRI_PRIME env var handles offloading)."
+fi
+rm -f /root/.gpu-mode
 
 # dwl setup
 cat > /home/${USERNAME}/dwl-install.sh <<'DWLSCRIPT'
