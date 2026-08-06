@@ -74,5 +74,5 @@ static const struct arg args[] = {
 	 * wpctl (WirePlumber's CLI, already confirmed working) instead and
 	 * extracts just the percentage. */
 	{ run_command,         " | VOL %s%%",          "wpctl get-volume @DEFAULT_AUDIO_SINK@ | awk '{printf \"%.0f\", $2*100}'" },
-	{ datetime,            "   %s   ",             "%F %T" },
+	{ datetime,            "   %s   ",             "%a, %b %e   %I:%M:%S %p" },
 };
