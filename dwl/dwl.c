@@ -741,8 +741,8 @@ arrangelayers(Monitor *m)
 		return;
 
 	if (m->scene_buffer->node.enabled) {
-		usable_area.height -= m->b.real_height;
-		usable_area.y += topbar ? m->b.real_height : 0;
+		usable_area.height -= m->b.real_height + 2 * gappx * m->gaps;
+		usable_area.y += topbar ? m->b.real_height + 2 * gappx * m->gaps : 0;
 	}
 
 	/* Arrange exclusive surfaces from top->bottom */
@@ -1768,8 +1768,8 @@ drawbar(Monitor *m)
 
 	wlr_scene_buffer_set_dest_size(m->scene_buffer,
 		m->b.real_width, m->b.real_height);
-	wlr_scene_node_set_position(&m->scene_buffer->node, m->m.x,
-		m->m.y + (topbar ? 0 : m->m.height - m->b.real_height));
+	wlr_scene_node_set_position(&m->scene_buffer->node, m->m.x + gappx * m->gaps,
+		m->m.y + (topbar ? gappx * m->gaps : m->m.height - m->b.real_height - gappx * m->gaps));
 	wlr_scene_buffer_set_buffer(m->scene_buffer, &buf->base);
 	wlr_buffer_unlock(&buf->base);
 }
@@ -3171,7 +3171,10 @@ void
 togglegaps(const Arg *arg)
 {
 	selmon->gaps = !selmon->gaps;
+	updatebar(selmon);
+	arrangelayers(selmon);
 	arrange(selmon);
+	drawbar(selmon);
 }
 
 void
@@ -3369,7 +3372,7 @@ updatebar(Monitor *m)
 	char fontattrs[12];
 
 	wlr_output_transformed_resolution(m->wlr_output, &rw, &rh);
-	m->b.width = rw;
+	m->b.width = rw - (int)(2 * gappx * m->gaps * m->wlr_output->scale);
 	m->b.real_width = (int)((float)m->b.width / m->wlr_output->scale);
 
 	wlr_scene_node_set_enabled(&m->scene_buffer->node, m->wlr_output->enabled ? showbar : 0);
