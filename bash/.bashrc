@@ -84,6 +84,7 @@ _fzf_file_no_hidden() {
 }
 
 # ---- aliases ----
+alias sdwl='~/.config/scripts/startdwl'
 alias ls='eza --icons'
 alias ll='eza -lh --icons --git'
 alias la='eza -lah --icons --git'
@@ -115,8 +116,6 @@ alias stream='mpv av://v4l2:/dev/video4 --fullscreen --demuxer-lavf-o=input_form
 
 # ---- key bindings ----
 set -o vi
-
-bind -x '"\ew": walls'
 
 bind '"\e[1;5C": forward-word'
 bind '"\e[1;5D": backward-word'
@@ -162,5 +161,4 @@ nvidia-run() {
     __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia __VK_LAYER_NV_optimus=NVIDIA_only "$@"
 }
 
-# ble.sh must attach after all other rc processing is finished
 [[ ${BLE_VERSION-} ]] && ble-attach
