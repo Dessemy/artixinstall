@@ -14,13 +14,10 @@ CONFIG_DIRS=(cava dwl foot rmpc mako nvim qutebrowser scripts yazi)
 THEME_NAME="tokyonight"
 THEME_FONT="FiraCode Nerd Font Propo Bold 15"
 
-info "Setting DNS nameserver to 1.1.1.1 ..."
-rm -f /etc/resolv.conf 2>/dev/null || true
-cat > /etc/resolv.conf <<RESOLV
-nameserver 1.1.1.1
-nameserver 1.0.0.1
-RESOLV
-chattr +i /etc/resolv.conf 2>/dev/null || warn "chattr +i on /etc/resolv.conf failed, DNS may get reset mid-install if NetworkManager is running"
+# clear any leftover immutable flag from a previous interrupted run of this
+# script (a prior run may have chattr +i'd this file, which would make
+# every DNS-dependent step below fail with "Operation not permitted")
+chattr -i /etc/resolv.conf 2>/dev/null || true
 
 # ensure parted is available
 if ! command -v parted >/dev/null 2>&1; then
