@@ -111,11 +111,13 @@ static const enum libinput_config_tap_button_map button_map = LIBINPUT_CONFIG_TA
 static const char *termcmd[]         = { "foot", NULL };
 static const char *qutecmd[]         = { "qutebrowser", NULL };
 static const char *pickrcmd[]        = { "hyprpicker", NULL };
+static const char *vpncmd[]          = { "/bin/sh", "-c", "$HOME/.config/scripts/vpn", NULL };
 
 static const Key keys[] = {
 	{ MODKEY,                              XKB_KEY_Return,         spawn,            {.v = termcmd} },
     { MODKEY,                              XKB_KEY_q,              spawn,            {.v = qutecmd} },
 	{ MODKEY,                              XKB_KEY_p,              spawn,            {.v = pickrcmd} },
+    { MODKEY|WLR_MODIFIER_SHIFT,           XKB_KEY_V,              spawn,            {.v = vpncmd} },
     { MODKEY,                              XKB_KEY_s,              spawn,            SHCMD("$HOME/.config/scripts/snip full") },
     { MODKEY|WLR_MODIFIER_CTRL,            XKB_KEY_s,              spawn,            SHCMD("$HOME/.config/scripts/snip area") },
 	{ MODKEY,                              XKB_KEY_Tab,            spawn,            SHCMD("foot -e $HOME/.config/scripts/launchr") },
@@ -131,7 +133,7 @@ static const Key keys[] = {
 	{ MODKEY,                              XKB_KEY_t,              spawn,            SHCMD("foot -e ttyper") },
 	{ MODKEY,                              XKB_KEY_w,              spawn,            SHCMD("foot -e wiremix") },
 	{ MODKEY,                              XKB_KEY_i,              spawn,            SHCMD("foot -e impala") },
-	
+
 	{ 0,                                   XKB_KEY_XF86MonBrightnessUp,   spawn,     SHCMD("brightnessctl set +5%") },
 	{ 0,                                   XKB_KEY_XF86MonBrightnessDown, spawn,     SHCMD("brightnessctl set 5%-") },
 
