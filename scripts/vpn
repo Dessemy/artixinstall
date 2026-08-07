@@ -1,0 +1,14 @@
+#!/bin/sh
+CONF="protonvpn"
+
+if sudo -n wg show "$CONF" >/dev/null 2>&1; then
+    sudo -n wg-quick down "$CONF"
+    notify-send -i network-vpn-disconnected "ProtonVPN" "Disconnected"
+else
+    if sudo -n wg-quick up "$CONF" 2>/tmp/protonvpn_err; then
+        notify-send -i network-vpn "ProtonVPN" "Connected"
+    else
+        notify-send -u critical "ProtonVPN" "Connection failed:
+$(cat /tmp/protonvpn_err)"
+    fi
+fi
