@@ -340,11 +340,17 @@ EnableNetworkConfiguration=true
 NameResolvingService=resolvconf
 IWD
 
+# managed via resolvconf (not a raw file) so it carries a valid signature —
+# a plain `cat > /etc/resolv.conf` here would make wg-quick's later
+# `resolvconf -a protonvpn` call fail with "signature mismatch" when the
+# VPN toggle keybinding is used after install
 rm -f /etc/resolv.conf 2>/dev/null || true
-cat > /etc/resolv.conf <<RESOLV
+mkdir -p /etc/resolvconf.d
+cat > /etc/resolvconf.d/head <<'RESOLV'
 nameserver 1.1.1.1
 nameserver 1.0.0.1
 RESOLV
+resolvconf -u 2>/dev/null || echo "WARNING: resolvconf -u failed, DNS may not be set correctly"
 chattr +i /etc/resolv.conf 2>/dev/null || echo "WARNING: chattr +i on /etc/resolv.conf failed, DNS may be reset mid-install"
 
 mkdir -p /etc/runit/runsvdir/default
@@ -525,6 +531,17 @@ chmod +x /home/${USERNAME}/dwl-install.sh
 
 su - "${USERNAME}" -c /home/${USERNAME}/dwl-install.sh
 rm -f /home/${USERNAME}/dwl-install.sh
+
+# passwordless wg-quick for the ProtonVPN toggle keybinding (Super+Shift+V):
+# spawn has no terminal to show a password prompt, so without this the
+# script would silently fail every time.
+WG_QUICK_BIN="\$(command -v wg-quick || echo /usr/bin/wg-quick)"
+cat > /etc/sudoers.d/30-protonvpn <<SUDOERS
+%wheel ALL=(root) NOPASSWD: \${WG_QUICK_BIN} up protonvpn, \${WG_QUICK_BIN} down protonvpn
+SUDOERS
+chmod 0440 /etc/sudoers.d/30-protonvpn
+visudo -cf /etc/sudoers.d/30-protonvpn \
+    || echo "WARNING: /etc/sudoers.d/30-protonvpn failed validation, ProtonVPN toggle will prompt for a password."
 
 # install & apply the tokyonight GTK theme
 if [ -d /root/theme-src ]; then
