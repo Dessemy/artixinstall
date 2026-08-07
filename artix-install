@@ -110,6 +110,13 @@ warn "ALL DATA on $DISK will be ERASED!"
 read -rp "Type 'YES' to continue: " CONFIRM
 [ "$CONFIRM" = "YES" ] || error "Aborted."
 
+# everything from here on is fully unattended — no more prompts are asked.
+# close stdin now so that if any command below ever accidentally tries to
+# read from the terminal (this is what caused the script to hang forever
+# on a stray "cat" reading stdin instead of a file/heredoc), it gets an
+# immediate EOF instead of blocking indefinitely.
+exec < /dev/null
+
 # partitioning
 info "Partitioning $DISK ..."
 if [[ "$DISK" == *"nvme"* || "$DISK" == *"mmcblk"* ]]; then
