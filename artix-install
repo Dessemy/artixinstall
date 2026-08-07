@@ -340,18 +340,13 @@ EnableNetworkConfiguration=true
 NameResolvingService=resolvconf
 IWD
 
-# managed via resolvconf (not a raw file) so it carries a valid signature —
-# a plain `cat > /etc/resolv.conf` here would make wg-quick's later
-# `resolvconf -a protonvpn` call fail with "signature mismatch" when the
-# VPN toggle keybinding is used after install
+# no static nameservers here — resolv.conf is left for resolvconf to
+# generate on its own (from iwd on connect, or from wg-quick when the
+# ProtonVPN toggle is used). A raw `cat > /etc/resolv.conf` would leave
+# a file with no valid resolvconf signature, which makes wg-quick's later
+# `resolvconf -a protonvpn` call fail with "signature mismatch"
 rm -f /etc/resolv.conf 2>/dev/null || true
-mkdir -p /etc/resolvconf.d
-cat > /etc/resolvconf.d/head <<'RESOLV'
-nameserver 1.1.1.1
-nameserver 1.0.0.1
-RESOLV
-resolvconf -u 2>/dev/null || echo "WARNING: resolvconf -u failed, DNS may not be set correctly"
-chattr +i /etc/resolv.conf 2>/dev/null || echo "WARNING: chattr +i on /etc/resolv.conf failed, DNS may be reset mid-install"
+resolvconf -u 2>/dev/null || true
 
 mkdir -p /etc/runit/runsvdir/default
 ln -sf /etc/runit/sv/dbus /etc/runit/runsvdir/default/ 2>/dev/null || true
@@ -586,8 +581,6 @@ rm -f /etc/sudoers.d/20-wheel-nopass
 # seatd for dwl
 ln -sf /etc/runit/sv/seatd /etc/runit/runsvdir/default/ 2>/dev/null || true
 usermod -aG seat "${USERNAME}"
-
-chattr -i /etc/resolv.conf 2>/dev/null || echo "WARNING: chattr -i on /etc/resolv.conf failed, remove the immutable flag manually after first boot if DNS doesn't update."
 
 # grub: no boot delay, no menu flash
 sed -i 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=0/' /etc/default/grub
