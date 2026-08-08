@@ -120,7 +120,7 @@ static const Key keys[] = {
     { MODKEY|WLR_MODIFIER_SHIFT,           XKB_KEY_V,              spawn,            {.v = vpncmd} },
     { MODKEY,                              XKB_KEY_s,              spawn,            SHCMD("$HOME/.config/scripts/snip full") },
     { MODKEY|WLR_MODIFIER_CTRL,            XKB_KEY_s,              spawn,            SHCMD("$HOME/.config/scripts/snip area") },
-	{ MODKEY,                              XKB_KEY_m,              spawn,            SHCMD("foot -e $HOME/.config/scripts/launchr") },
+	{ MODKEY,                              XKB_KEY_tab,              spawn,            SHCMD("foot -e $HOME/.config/scripts/launchr") },
 	{ MODKEY,                              XKB_KEY_y,              spawn,            SHCMD("foot -e yazi") },
 	{ MODKEY,                              XKB_KEY_r,              spawn,            SHCMD("foot -e rmpc") },
 	{ MODKEY,                              XKB_KEY_g,              spawn,            SHCMD("foot -e gotop") },
