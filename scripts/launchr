@@ -1,6 +1,8 @@
 #!/bin/sh
 set -e
 
+SELF=$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")
+
 APP_DIRS="/usr/share/applications $HOME/.local/share/applications"
 WALLPAPER_DIR="$HOME/Pictures/Wallpapers"
 CACHE_FILE="$HOME/.cache/current_wallpaper"
@@ -28,6 +30,29 @@ list_apps() {
     done | sort -u -t"$(printf '\t')" -k1,1
 }
 
+calc_line() {
+    q="$1"
+    [ -z "$q" ] && return 0
+
+    case "$q" in
+        *[!0-9+\-*/^\(\).\ ]*) return 0 ;;
+    esac
+    case "$q" in
+        *[0-9]*) : ;;
+        *) return 0 ;;
+    esac
+
+    result=$(printf '%s\n' "$q" | bc -l 2>/dev/null) || return 0
+    [ -z "$result" ] && return 0
+    printf '= %s\n' "$result"
+}
+
+if [ "$1" = "--calc-and-menu" ]; then
+    calc_line "$2"
+    printf 'Apps\nClipboard\nSystem\nWallpaper\nUpdate\n'
+    exit 0
+fi
+
 run_applauncher() {
     chosen=$(list_apps | fzf \
         --prompt='Launch > ' \
@@ -42,6 +67,24 @@ run_applauncher() {
     cmd=$(printf '%s' "$chosen" | cut -f2-)
     setsid -f sh -c "$cmd" >/dev/null 2>&1
     sleep 0.3
+}
+
+# ---- Clipboard ----
+
+run_clipboard() {
+    selected=$(cliphist list | fzf \
+        --prompt='Clipboard > ' \
+        --height=100% \
+        --layout=reverse \
+        --border=sharp \
+        --preview 'echo {}' \
+        --preview-window up:3:wrap:border-sharp)
+
+    [ -z "$selected" ] && return 0
+
+    printf '%s' "$selected" | cliphist decode | wl-copy
+
+    command -v notify-send >/dev/null 2>&1 && notify-send "Clipboard" "Item copied"
 }
 
 # ---- System ----
@@ -130,18 +173,24 @@ run_update() {
 
 # ---- Launcher ----
 
-options="Apps\nSystem\nWallpaper\nUpdate"
-
-chosen=$(printf "$options" | fzf \
+chosen=$(printf 'Apps\nClipboard\nSystem\nWallpaper\nUpdate\n' | fzf \
     --prompt='Go > ' \
     --height=100% \
     --layout=reverse \
-    --border=sharp)
+    --border=sharp \
+    --disabled \
+    --bind "change:reload($SELF --calc-and-menu {q})")
 
 [ -z "$chosen" ] && exit 0
 
 case "$chosen" in
+    "= "*)
+        result=${chosen#= }
+        printf '%s' "$result" | wl-copy
+        command -v notify-send >/dev/null 2>&1 && notify-send "Calculator" "$result copied"
+        ;;
     "Apps") run_applauncher ;;
+    "Clipboard") run_clipboard ;;
     "System") run_system ;;
     "Wallpaper") run_wallpaper ;;
     "Update") run_update ;;
