@@ -166,8 +166,7 @@ BASESTRAP_PKGS="base base-devel elogind-runit dbus-runit \
     grub efibootmgr ntfs-3g dosfstools e2fsprogs \
     iwd iwd-runit iproute2 inetutils openssh openssh-runit openresolv \
     pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber alsa-utils \
-    bluez bluez-utils bluez-runit \
-    mpd \
+    bluez bluez-utils bluez-runit mpd \
     git wget curl rsync unzip zip tar reflector \
     neovim sudo bash-completion \
     tree less pciutils usbutils"
@@ -530,7 +529,7 @@ echo "Preparing dwl and desktop package list ..."
 cat > /home/${USERNAME}/dwl-install.sh <<'DWLSCRIPT'
 #!/bin/bash
 DWL_PKGS="foot mako cliphist swaybg wl-clipboard seatd seatd-runit xorg-xwayland
-ttf-firacode-nerd noto-fonts noto-fonts-cjk noto-fonts-emoji yazi
+ttf-firacode-nerd noto-fonts noto-fonts-cjk noto-fonts-emoji yazi bc
 starship zoxide jq fd fzf fastfetch eza bat ripgrep imagemagick ffmpeg 7zip aria2
 ueberzugpp chafa ffmpegthumbnailer poppler mediainfo bluetui impala wiremix cava mpv rmpc mpc
 brightnessctl playerctl libnotify gotop tlp tlp-rdw
