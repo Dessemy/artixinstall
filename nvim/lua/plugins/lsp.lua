@@ -1,20 +1,13 @@
--- lua/plugins/lsp.lua
---
--- Uses Neovim's built-in LSP client config API (vim.lsp.config / vim.lsp.enable,
--- stable since 0.11) together with mason-lspconfig v2+, which auto-enables any
--- server it installs. There is no more manual lspconfig[server].setup() loop.
 return {
-  -- Mason: installs and manages LSP servers, formatters, linters
   {
     "williamboman/mason.nvim",
     cmd = "Mason",
     build = ":MasonUpdate",
     opts = {
-      ui = { border = "rounded" },
+      ui = { border = "single" },
     },
   },
 
-  -- Core LSP config
   {
     "neovim/nvim-lspconfig",
     event = { "BufReadPre", "BufNewFile" },
@@ -23,9 +16,6 @@ return {
       {
         "williamboman/mason-lspconfig.nvim",
         opts = {
-          -- Servers installed automatically. Add to this list as needed.
-          -- mason-lspconfig v2 auto-enables each one via vim.lsp.enable()
-          -- once installed, so no manual setup loop is needed here.
           ensure_installed = {
             "lua_ls",
             "pyright",
@@ -37,17 +27,16 @@ return {
           },
         },
       },
-      "hrsh7th/cmp-nvim-lsp", -- capability advertisement for completion
-      { "j-hui/fidget.nvim", opts = {} }, -- LSP progress notifications
+      "hrsh7th/cmp-nvim-lsp",
+      { "j-hui/fidget.nvim", opts = {} },
     },
     config = function()
-      -- Advertise nvim-cmp's completion capabilities to every server by
-      -- default. Individual servers can still be overridden below.
       local capabilities = require("cmp_nvim_lsp").default_capabilities()
       vim.lsp.config("*", { capabilities = capabilities })
 
-      -- Per-server overrides. Anything not listed here just uses the
-      -- defaults nvim-lspconfig ships, merged with the "*" config above.
+      vim.lsp.handlers["textDocument/hover"] = vim.lsp.with(vim.lsp.buf.hover, { border = "single" })
+      vim.lsp.handlers["textDocument/signatureHelp"] = vim.lsp.with(vim.lsp.buf.signature_help, { border = "single" })
+
       vim.lsp.config("lua_ls", {
         settings = {
           Lua = {
@@ -62,7 +51,6 @@ return {
         },
       })
 
-      -- Keymaps applied only to buffers that have an active LSP client
       vim.api.nvim_create_autocmd("LspAttach", {
         group = vim.api.nvim_create_augroup("UserLspAttach", { clear = true }),
         callback = function(event)
@@ -83,7 +71,6 @@ return {
             vim.lsp.buf.format({ async = true })
           end, "Format buffer")
 
-          -- Highlight references of the symbol under the cursor
           local client = vim.lsp.get_client_by_id(event.data.client_id)
           if client and client.supports_method("textDocument/documentHighlight") then
             local hl_group = vim.api.nvim_create_augroup("UserLspHighlight", { clear = false })
@@ -101,11 +88,10 @@ return {
         end,
       })
 
-      -- Diagnostic display
       vim.diagnostic.config({
         virtual_text = { prefix = "●" },
         severity_sort = true,
-        float = { border = "rounded" },
+        float = { border = "single" },
         signs = {
           text = {
             [vim.diagnostic.severity.ERROR] = "",
