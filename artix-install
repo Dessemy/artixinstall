@@ -362,10 +362,9 @@ usermod -aG audio,video,lp,storage "${USERNAME}"
 
 mkdir -p "/home/${USERNAME}/Music" \
     "/home/${USERNAME}/Music/playlists" \
-    "/home/${USERNAME}/Music/database" \
     "/home/${USERNAME}/Downloads" \
     "/home/${USERNAME}/Pictures/Wallpapers" \
-    "/home/${USERNAME}/.local" \
+    "/home/${USERNAME}/.local/share" \
     "/home/${USERNAME}/.cache"
 chown -R ${USERNAME}:${USERNAME} \
     "/home/${USERNAME}/Music" \
@@ -375,11 +374,12 @@ chown -R ${USERNAME}:${USERNAME} \
     "/home/${USERNAME}/Pictures"
 
 if [ ! -f "/home/${USERNAME}/.config/mpd/mpd.conf" ]; then
-    mkdir -p "/home/${USERNAME}/.config/mpd"
+    mkdir -p "/home/${USERNAME}/.config/mpd" "/home/${USERNAME}/.local/share/mpd"
+    chown ${USERNAME}:${USERNAME} "/home/${USERNAME}/.local/share/mpd"
     cat > "/home/${USERNAME}/.config/mpd/mpd.conf" <<MPDCONF
 music_directory     "~/Music"
-playlist_directory  "~/Music/playlist"
-db_file             "~/Music/database"
+playlist_directory  "~/Music/playlists"
+db_file             "~/.local/share/mpd/database"
 
 bind_to_address     "127.0.0.1"
 auto_update         "yes"
@@ -393,7 +393,7 @@ audio_output {
     name "Pipewire Sound Server"
 }
 MPDCONF
-    chown ${USERNAME}:${USERNAME} "/home/${USERNAME}/.config/mpd/mpd.conf"
+    chown -R ${USERNAME}:${USERNAME} "/home/${USERNAME}/.config/mpd"
 fi
 
 if ! grep -q 'pgrep -x mpd' "/home/${USERNAME}/.bashrc" 2>/dev/null; then
@@ -550,7 +550,7 @@ if [ -d /root/theme-src ]; then
     echo "Installing GTK theme: ${THEME_NAME} ..."
     mkdir -p "/home/${USERNAME}/.local/share/themes"
     cp -r /root/theme-src "/home/${USERNAME}/.local/share/themes/${THEME_NAME}"
-    chown -R ${USERNAME}:${USERNAME} "/home/${USERNAME}/.local/share/themes"
+    chown -R ${USERNAME}:${USERNAME} "/home/${USERNAME}/.local/share"
     rm -rf /root/theme-src
 
     su - "${USERNAME}" -c "dbus-run-session -- bash -c '
