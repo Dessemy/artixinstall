@@ -1,4 +1,3 @@
--- lua/plugins/telescope.lua
 return {
   {
     "nvim-telescope/telescope.nvim",
@@ -31,6 +30,7 @@ return {
         selection_caret = " ",
         path_display = { "truncate" },
         sorting_strategy = "ascending",
+        borderchars = { "─", "│", "─", "│", "┌", "┐", "┘", "└" },
         layout_config = {
           horizontal = { prompt_position = "top", preview_width = 0.55 },
         },
