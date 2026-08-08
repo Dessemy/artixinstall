@@ -19,45 +19,6 @@ THEME_FONT="FiraCode Nerd Font Propo Bold 15"
 # every DNS-dependent step below fail with "Operation not permitted")
 chattr -i /etc/resolv.conf 2>/dev/null || true
 
-# start haveged early to keep the kernel entropy pool full. Without this,
-# GPG/pacman-key operations can hang for a long time on idle physical
-# hardware waiting for enough randomness — this includes the live ISO's
-# own "pacman-init" service (which can silently sit for 20+ minutes) and
-# "pacman-key --populate archlinux" later inside the chroot. The entropy
-# pool is kernel-wide, so starting haveged once here, before anything
-# else touches pacman/GPG, fixes both.
-if command -v haveged >/dev/null 2>&1; then
-    if ! pgrep -x haveged >/dev/null 2>&1; then
-        info "Starting haveged to keep the entropy pool full ..."
-        haveged -w 1024 2>/dev/null || warn "Failed to start haveged, entropy-dependent steps below may be slow."
-    fi
-else
-    warn "haveged not found — GPG/pacman-key steps may hang on idle physical hardware. Consider installing haveged first: pacman -Sy --noconfirm haveged"
-fi
-
-# pacman-init (the live ISO's own key-population service) has proven to
-# reliably hang on this hardware — it tries to reach a GPG keyserver over
-# the network and the request never comes back, even though ordinary
-# HTTPS traffic works fine (different port, often blocked by routers/ISPs).
-# Give it a short window to finish on its own, then kill it and populate
-# the keyring manually from the local keyring files only (no network
-# needed for this — every key artix/archlinux ship is already on disk).
-if pgrep -x pacman-init >/dev/null 2>&1; then
-    info "pacman-init is running — waiting up to 20s for it to finish naturally ..."
-    for i in $(seq 1 20); do
-        pgrep -x pacman-init >/dev/null 2>&1 || break
-        sleep 1
-    done
-    if pgrep -x pacman-init >/dev/null 2>&1; then
-        warn "pacman-init still stuck after 20s (known network/keyserver hang on this hardware) — killing it and populating the keyring manually instead."
-        pkill -9 -x pacman-init 2>/dev/null || true
-        pkill -9 -x gpg-agent 2>/dev/null || true
-        rm -f /var/lib/pacman/db.lck 2>/dev/null || true
-        pacman-key --init
-        pacman-key --populate archlinux artix 2>/dev/null || pacman-key --populate archlinux
-    fi
-fi
-
 # ensure parted is available
 if ! command -v parted >/dev/null 2>&1; then
     info "parted not found, installing ..."
@@ -383,13 +344,14 @@ EnableNetworkConfiguration=true
 NameResolvingService=resolvconf
 IWD
 
-# no static nameservers here — resolv.conf is left for resolvconf to
-# generate on its own (from iwd on connect, or from wg-quick when the
-# ProtonVPN toggle is used). A raw `cat > /etc/resolv.conf` would leave
-# a file with no valid resolvconf signature, which makes wg-quick's later
-# \`resolvconf -a protonvpn\` call fail with "signature mismatch"
-rm -f /etc/resolv.conf 2>/dev/null || true
-resolvconf -u 2>/dev/null || true
+# NOTE: resolvconf's reset (rm /etc/resolv.conf + resolvconf -u) used to
+# run right here, but at this point in the chroot no interface is yet
+# registered with resolvconf, so it regenerated resolv.conf with NO
+# nameservers in it — killing DNS for every pacman/git/yay call for the
+# rest of this script ("Could not resolve host" on every mirror, even
+# though basestrap and earlier chroot steps worked fine). Moved to the
+# very end of this script (after grub-install), so DNS stays alive
+# throughout the whole install. See RESOLVCONF_RESET near the bottom.
 
 mkdir -p /etc/runit/runsvdir/default
 ln -sf /etc/runit/sv/dbus /etc/runit/runsvdir/default/ 2>/dev/null || true
@@ -641,6 +603,17 @@ else
     grub-install --target=i386-pc ${DISK}
 fi
 grub-mkconfig -o /boot/grub/grub.cfg
+
+# RESOLVCONF_RESET: hand DNS management back to resolvconf now that every
+# package install / git clone / makepkg call above is done. No static
+# nameservers here on purpose — resolv.conf is left for resolvconf to
+# generate on its own at real boot (from iwd on connect, or from
+# wg-quick when the ProtonVPN toggle is used). A raw \`cat > /etc/resolv.conf\`
+# would leave a file with no valid resolvconf signature, which makes
+# wg-quick's later \`resolvconf -a protonvpn\` call fail with "signature
+# mismatch".
+rm -f /etc/resolv.conf 2>/dev/null || true
+resolvconf -u 2>/dev/null || true
 EOF
 
 chmod +x /mnt/root/chroot-setup.sh
