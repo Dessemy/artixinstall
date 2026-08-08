@@ -395,10 +395,10 @@ else
     echo "Single GPU detected."
 fi
 
-GPU_PKGS="mesa vulkan-icd-loader"
-[ "\$HAS_NVIDIA" -eq 1 ] && GPU_PKGS="\$GPU_PKGS nvidia-dkms nvidia-utils nvidia-settings opencl-nvidia"
-[ "\$HAS_INTEL" -eq 1 ]  && GPU_PKGS="\$GPU_PKGS vulkan-intel intel-media-driver libva-intel-driver"
-[ "\$HAS_AMD" -eq 1 ]    && GPU_PKGS="\$GPU_PKGS xf86-video-amdgpu vulkan-radeon libva-mesa-driver"
+GPU_PKGS="mesa vulkan-icd-loader lib32-mesa lib32-vulkan-icd-loader"
+[ "\$HAS_NVIDIA" -eq 1 ] && GPU_PKGS="\$GPU_PKGS nvidia-dkms nvidia-utils nvidia-settings opencl-nvidia lib32-nvidia-utils lib32-opencl-nvidia"
+[ "\$HAS_INTEL" -eq 1 ]  && GPU_PKGS="\$GPU_PKGS vulkan-intel intel-media-driver libva-intel-driver lib32-vulkan-intel"
+[ "\$HAS_AMD" -eq 1 ]    && GPU_PKGS="\$GPU_PKGS xf86-video-amdgpu vulkan-radeon libva-mesa-driver lib32-vulkan-radeon lib32-mesa"
 
 for pkg in \$GPU_PKGS; do
     pacman -S --needed --noconfirm "\$pkg" || echo "WARNING: failed to install \$pkg, skipping."
