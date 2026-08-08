@@ -109,9 +109,6 @@
             alignment: Right,
         ),
     ],
-    // Same overall layout as the default rmpc theme (header / tab bar / tab content /
-    // progress bar), but every "Rounded" border has been swapped for "Plain" so all
-    // corners are sharp/square instead of rounded.
     layout: Split(
         direction: Vertical,
         panes: [
@@ -200,12 +197,12 @@
         ),
         "elapsed_and_bitrate": Pane(Property(
             content: [
-                (kind: Property(Status(Elapsed))),
-                (kind: Text(" / ")),
-                (kind: Property(Status(Duration))),
+                (kind: Property(Status(Elapsed))), 
+                (kind: Text(" / ")), 
+                (kind: Property(Status(Duration))), 
                 (kind: Group([
-                    (kind: Text(" (")),
-                    (kind: Property(Status(Bitrate))),
+                    (kind: Text(" (")), 
+                    (kind: Property(Status(Bitrate))), 
                     (kind: Text(" kbps)")),
                 ])),
             ],
