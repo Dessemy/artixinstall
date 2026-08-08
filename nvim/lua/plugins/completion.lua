@@ -1,15 +1,14 @@
--- lua/plugins/completion.lua
 return {
   {
     "hrsh7th/nvim-cmp",
     event = "InsertEnter",
     dependencies = {
-      "hrsh7th/cmp-nvim-lsp", -- LSP completion source
-      "hrsh7th/cmp-buffer", -- buffer words source
-      "hrsh7th/cmp-path", -- filesystem path source
-      "L3MON4D3/LuaSnip", -- snippet engine
-      "saadparwaiz1/cmp_luasnip", -- snippet source for nvim-cmp
-      "rafamadriz/friendly-snippets", -- common snippet collection
+      "hrsh7th/cmp-nvim-lsp",
+      "hrsh7th/cmp-buffer",
+      "hrsh7th/cmp-path",
+      "L3MON4D3/LuaSnip",
+      "saadparwaiz1/cmp_luasnip",
+      "rafamadriz/friendly-snippets",
     },
     config = function()
       local cmp = require("cmp")
@@ -24,8 +23,12 @@ return {
           end,
         },
         window = {
-          completion = cmp.config.window.bordered(),
-          documentation = cmp.config.window.bordered(),
+          completion = cmp.config.window.bordered({
+            border = { "┌", "─", "┐", "│", "┘", "─", "└", "│" },
+          }),
+          documentation = cmp.config.window.bordered({
+            border = { "┌", "─", "┐", "│", "┘", "─", "└", "│" },
+          }),
         },
         mapping = cmp.mapping.preset.insert({
           ["<C-j>"] = cmp.mapping.select_next_item(),
