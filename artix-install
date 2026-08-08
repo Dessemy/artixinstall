@@ -14,18 +14,14 @@ CONFIG_DIRS=(cava dwl foot rmpc mako nvim qutebrowser scripts yazi)
 THEME_NAME="tokyonight"
 THEME_FONT="FiraCode Nerd Font Propo Bold 15"
 
-# clear any leftover immutable flag from a previous interrupted run of this
-# script (a prior run may have chattr +i'd this file, which would make
-# every DNS-dependent step below fail with "Operation not permitted")
+info "Clearing leftover immutable flag on resolv.conf (if any) ..."
 chattr -i /etc/resolv.conf 2>/dev/null || true
 
-# ensure parted is available
 if ! command -v parted >/dev/null 2>&1; then
     info "parted not found, installing ..."
     pacman -Sy --noconfirm parted || error "Failed to install parted. Check your internet connection."
 fi
 
-# boot mode
 if [ -d /sys/firmware/efi/efivars ]; then
     BOOT_MODE="uefi"
 else
@@ -33,7 +29,6 @@ else
 fi
 info "Boot mode: $BOOT_MODE"
 
-# input
 echo
 lsblk -d -o NAME,SIZE,MODEL
 echo
@@ -71,14 +66,9 @@ warn "ALL DATA on $DISK will be ERASED!"
 read -rp "Type 'YES' to continue: " CONFIRM
 [ "$CONFIRM" = "YES" ] || error "Aborted."
 
-# everything from here on is fully unattended — no more prompts are asked.
-# close stdin now so that if any command below ever accidentally tries to
-# read from the terminal (this is what caused the script to hang forever
-# on a stray "cat" reading stdin instead of a file/heredoc), it gets an
-# immediate EOF instead of blocking indefinitely.
+info "Closing stdin, running unattended from here on ..."
 exec < /dev/null
 
-# partitioning
 info "Partitioning $DISK ..."
 if [[ "$DISK" == *"nvme"* || "$DISK" == *"mmcblk"* ]]; then
     PART_PREFIX="${DISK}p"
@@ -86,7 +76,6 @@ else
     PART_PREFIX="${DISK}"
 fi
 
-# cleanup leftovers from a previous run
 info "Cleaning up any leftovers from a previous attempt ..."
 swapoff -a 2>/dev/null || true
 umount -R /mnt 2>/dev/null || true
@@ -113,7 +102,6 @@ else
     ROOT_PART="${PART_PREFIX}2"
 fi
 
-# retry until kernel sees the new partition table
 for i in 1 2 3 4 5; do
     partprobe "$DISK" 2>/dev/null && break
     sleep 2
@@ -121,7 +109,6 @@ done
 udevadm settle 2>/dev/null || true
 sleep 2
 
-# format
 info "Formatting root as ext4 ..."
 mkfs.ext4 -F "$ROOT_PART"
 
@@ -130,7 +117,6 @@ if [ "$BOOT_MODE" = "uefi" ]; then
     mkfs.fat -F32 "$EFI_PART"
 fi
 
-# mount
 info "Mounting ..."
 mount "$ROOT_PART" /mnt
 if [ "$BOOT_MODE" = "uefi" ]; then
@@ -138,7 +124,6 @@ if [ "$BOOT_MODE" = "uefi" ]; then
     mount "$EFI_PART" /mnt/boot/efi
 fi
 
-# stage dotfiles for the chroot step
 mkdir -p /mnt/root/dotfiles-src
 for dir in "${CONFIG_DIRS[@]}"; do
     if [ -d "$SCRIPT_DIR/$dir" ]; then
@@ -157,8 +142,6 @@ else
     warn "bash/.bashrc or bash/starship.toml not found next to this script, skipping"
 fi
 
-# dwl is source code to be built with "make clean install" inside the chroot,
-# not a dotfiles folder, so it's staged separately (not into ~/.config)
 if [ -d "$SCRIPT_DIR/dwl" ]; then
     cp -r "$SCRIPT_DIR/dwl" /mnt/root/dwl-src
     info "Staged dwl source"
@@ -166,8 +149,6 @@ else
     warn "dwl source folder not found next to this script, skipping (dwl will not be built)"
 fi
 
-# tokyonight is a GTK theme, not a ~/.config dotfile, so it's staged
-# separately (goes to ~/.local/share/themes inside the chroot)
 if [ -d "$SCRIPT_DIR/$THEME_NAME" ]; then
     cp -r "$SCRIPT_DIR/$THEME_NAME" /mnt/root/theme-src
     info "Staged theme: $THEME_NAME"
@@ -175,22 +156,18 @@ else
     warn "Theme folder '$THEME_NAME' not found next to this script, skipping (GTK theme will not be installed)"
 fi
 
-# speed up pacman
+info "Enabling parallel downloads and syncing mirrors ..."
 sed -i 's/^#ParallelDownloads.*/ParallelDownloads = 5/' /etc/pacman.conf 2>/dev/null || true
 pacman -Syy --noconfirm || true
 
-# base install (retry, mirrors can be flaky)
 info "Running basestrap ..."
 BASESTRAP_PKGS="base base-devel elogind-runit dbus-runit \
     linux linux-firmware linux-headers \
     grub efibootmgr ntfs-3g dosfstools e2fsprogs \
     iwd iwd-runit iproute2 inetutils openssh openssh-runit openresolv \
     pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber alsa-utils \
-    bluez bluez-utils bluez-runit \
-    mpd \
-    git wget curl rsync unzip zip tar reflector \
-    neovim sudo bash-completion \
-    tree less pciutils usbutils"
+    bluez bluez-utils bluez-runit mpd git wget curl rsync unzip zip tar reflector \
+    neovim sudo bash-completion tree less pciutils usbutils"
 BASESTRAP_OK=0
 for i in 1 2 3; do
     if basestrap /mnt $BASESTRAP_PKGS; then
@@ -203,11 +180,9 @@ for i in 1 2 3; do
 done
 [ "$BASESTRAP_OK" -eq 1 ] || error "basestrap failed after multiple attempts. Try a different mirror or check your connection."
 
-# fstab
 info "Generating fstab ..."
 fstabgen -U /mnt >> /mnt/etc/fstab
 
-# chroot config
 info "Configuring system ..."
 cat > /mnt/root/chroot-setup.sh <<EOF
 #!/bin/bash
@@ -232,9 +207,7 @@ HOSTS
 useradd -m -G wheel -s /bin/bash "${USERNAME}"
 echo "${USERNAME}:${USER_PASS}" | chpasswd
 
-# sudo config: wheel group needs a password by default, via a drop-in
-# file (never edit /etc/sudoers directly — a syntax error there can lock
-# out all privilege escalation, a drop-in is validated independently)
+echo "Configuring sudo access for the wheel group ..."
 mkdir -p /etc/sudoers.d
 cat > /etc/sudoers.d/10-wheel <<'SUDOERS'
 %wheel ALL=(ALL:ALL) ALL
@@ -242,24 +215,10 @@ SUDOERS
 chmod 0440 /etc/sudoers.d/10-wheel
 visudo -cf /etc/sudoers.d/10-wheel || { echo "ERROR: /etc/sudoers.d/10-wheel failed validation"; exit 1; }
 
-# sanity check: confirm the user is actually in wheel and the sudoers
-# drop-in is valid. We can't test an unattended privileged sudo call yet
-# (the default policy correctly still requires a password at this point),
-# so we check the two things that would make every later sudo call fail:
-# group membership and sudoers syntax.
-if ! id -nG "${USERNAME}" | grep -qw wheel; then
-    echo "===================================================="
-    echo "ERROR: ${USERNAME} is not in the 'wheel' group — every"
-    echo "package install below will fail because of this."
-    echo "===================================================="
-    exit 1
-fi
-
-# add Arch repos (extra + multilib)
+echo "Adding Arch repositories (extra + multilib) ..."
 pacman -S --noconfirm artix-archlinux-support
 pacman-key --populate archlinux
 
-# Arch's geo-DNS mirror as reliable primary
 cat > /etc/pacman.d/mirrorlist-arch <<'MIRRORLIST'
 Server = https://geo.mirror.pkgbuild.com/\$repo/os/\$arch
 MIRRORLIST
@@ -283,7 +242,7 @@ fi
 
 pacman -Syy --noconfirm || echo "WARNING: pacman sync had issues (extra/multilib mirror may be flaky), continuing anyway."
 
-# install staged dotfiles
+echo "Installing staged dotfiles ..."
 mkdir -p /home/${USERNAME}/.config
 if [ -d /root/dotfiles-src ]; then
     for dir in /root/dotfiles-src/*/; do
@@ -294,8 +253,6 @@ if [ -d /root/dotfiles-src ]; then
     done
     chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.config
 
-    # make every file in ~/.config/scripts executable so startdwl/snip/etc.
-    # work right after install without manual chmod
     if [ -d "/home/${USERNAME}/.config/scripts" ]; then
         chmod -R +x "/home/${USERNAME}/.config/scripts"
         echo "  chmod +x applied to ~/.config/scripts/*"
@@ -312,23 +269,11 @@ if [ -f /root/dotfiles-src/starship.toml ]; then
 fi
 rm -rf /root/dotfiles-src
 
-# a login shell (e.g. a TTY login) only reads ~/.bash_profile, so make it
-# pull in ~/.bashrc too
 cat > /home/${USERNAME}/.bash_profile <<'BASHPROFILE'
 [[ -f "\$HOME/.bashrc" ]] && source "\$HOME/.bashrc"
 BASHPROFILE
 chown ${USERNAME}:${USERNAME} /home/${USERNAME}/.bashrc /home/${USERNAME}/.bash_profile
 
-# sanity check: confirm .bash_profile will actually pull in .bashrc for this
-# user (this is what makes tty1 auto-start of dwl work on login) — catch it
-# now instead of discovering a silent black-screen-at-login later
-if ! grep -q '\$HOME/\.bashrc' "/home/${USERNAME}/.bash_profile" 2>/dev/null; then
-    echo "===================================================="
-    echo "ERROR: /home/${USERNAME}/.bash_profile does not correctly"
-    echo "source ~/.bashrc — tty1 auto-start of dwl will NOT work."
-    echo "===================================================="
-    exit 1
-fi
 if ! grep -q 'exec dbus-run-session.*startdwl' "/home/${USERNAME}/.bashrc" 2>/dev/null; then
     echo "WARNING: ~/.bashrc has no tty1 auto-start block for dwl"
     echo "(expected a line like: exec dbus-run-session ~/.config/scripts/startdwl)."
@@ -344,14 +289,6 @@ EnableNetworkConfiguration=true
 NameResolvingService=resolvconf
 IWD
 
-# NOTE: resolvconf's reset (rm /etc/resolv.conf + resolvconf -u) used to
-# run right here, but at this point in the chroot no interface is yet
-# registered with resolvconf, so it regenerated resolv.conf with NO
-# nameservers in it — killing DNS for every pacman/git/yay call for the
-# rest of this script ("Could not resolve host" on every mirror, even
-# though basestrap and earlier chroot steps worked fine). Moved to the
-# very end of this script (after grub-install), so DNS stays alive
-# throughout the whole install. See RESOLVCONF_RESET near the bottom.
 
 mkdir -p /etc/runit/runsvdir/default
 ln -sf /etc/runit/sv/dbus /etc/runit/runsvdir/default/ 2>/dev/null || true
@@ -399,12 +336,11 @@ fi
 if ! grep -q 'pgrep -x mpd' "/home/${USERNAME}/.bashrc" 2>/dev/null; then
     cat >> "/home/${USERNAME}/.bashrc" <<'MPDAUTOSTART'
 
-# auto-start mpd (music daemon) if not already running
 pgrep -x mpd >/dev/null || mpd >/dev/null 2>&1
 MPDAUTOSTART
 fi
 
-# driver install
+echo "Detecting and installing GPU drivers ..."
 GPU_INFO=\$(lspci -nnk | grep -Ei "VGA compatible controller|3D controller|Display controller")
 echo "Detected GPU(s):"
 echo "\$GPU_INFO"
@@ -430,8 +366,6 @@ for pkg in \$GPU_PKGS; do
     pacman -S --needed --noconfirm "\$pkg" || echo "WARNING: failed to install \$pkg, skipping."
 done
 
-# remember the result for the GPU-switcher step below, which runs after
-# yay is built (envycontrol is AUR-only)
 if [ "\$GPU_COUNT" -ge 2 ] && [ "\$HAS_NVIDIA" -eq 1 ]; then
     echo "hybrid-nvidia" > /root/.gpu-mode
 elif [ "\$GPU_COUNT" -ge 2 ]; then
@@ -485,7 +419,7 @@ else
     exit 1
 fi
 
-# build yay (temporarily allow passwordless wheel for unattended build steps)
+echo "Setting up temporary passwordless sudo for unattended builds ..."
 cat > /etc/sudoers.d/20-wheel-nopass <<'SUDOERS'
 %wheel ALL=(ALL:ALL) NOPASSWD: ALL
 SUDOERS
@@ -494,11 +428,7 @@ visudo -cf /etc/sudoers.d/20-wheel-nopass || { echo "ERROR: nopass sudoers drop-
 
 su - "${USERNAME}" -c "cd ~ && git clone https://aur.archlinux.org/yay-bin.git && cd yay-bin && makepkg -si --noconfirm" \
     || echo "WARNING: yay install failed, you can retry manually later."
-# yay uses sudo by default, no extra config needed
 
-# GPU switcher: only needed for hybrid setups that include an Nvidia GPU
-# (e.g. Intel/AMD + Nvidia laptops). Installed here because envycontrol
-# is AUR-only and yay was just built above.
 if [ -f /root/.gpu-mode ] && [ "\$(cat /root/.gpu-mode)" = "hybrid-nvidia" ]; then
     echo "Hybrid Nvidia GPU setup detected, installing envycontrol (GPU switcher) ..."
     su - "${USERNAME}" -c "yay -S --needed --noconfirm envycontrol" \
@@ -509,7 +439,7 @@ elif [ -f /root/.gpu-mode ] && [ "\$(cat /root/.gpu-mode)" = "hybrid-other" ]; t
 fi
 rm -f /root/.gpu-mode
 
-# dwl setup
+echo "Preparing dwl and desktop package list ..."
 cat > /home/${USERNAME}/dwl-install.sh <<'DWLSCRIPT'
 #!/bin/bash
 DWL_PKGS="foot wmenu mako cliphist swaybg wl-clipboard seatd seatd-runit
@@ -520,7 +450,7 @@ ueberzugpp chafa ffmpegthumbnailer poppler mediainfo bluetui impala wiremix cava
 brightnessctl playerctl libnotify gotop tlp tlp-rdw
 nwg-look dconf gsettings-desktop-schemas hyprpicker
 wireguard-tools grim slurp nodejs npm waylock github-cli
-usbmount xdg-desktop-portal-no-systemd-rtkit xdg-desktop-portal-wlr qt5-wayland qt6-wayland
+xdg-desktop-portal-no-systemd-rtkit xdg-desktop-portal-wlr qt5-wayland qt6-wayland
 obs-studio qutebrowser"
 
 for pkg in \$DWL_PKGS; do
@@ -534,9 +464,7 @@ chmod +x /home/${USERNAME}/dwl-install.sh
 su - "${USERNAME}" -c /home/${USERNAME}/dwl-install.sh
 rm -f /home/${USERNAME}/dwl-install.sh
 
-# passwordless wg-quick for the ProtonVPN toggle keybinding (Super+Shift+V):
-# spawn has no terminal to show a password prompt, so without this the
-# script would silently fail every time.
+echo "Configuring passwordless ProtonVPN toggle ..."
 WG_QUICK_BIN="\$(command -v wg-quick || echo /usr/bin/wg-quick)"
 cat > /etc/sudoers.d/30-protonvpn <<SUDOERS
 %wheel ALL=(root) NOPASSWD: \${WG_QUICK_BIN} up protonvpn, \${WG_QUICK_BIN} down protonvpn
@@ -545,7 +473,6 @@ chmod 0440 /etc/sudoers.d/30-protonvpn
 visudo -cf /etc/sudoers.d/30-protonvpn \
     || echo "WARNING: /etc/sudoers.d/30-protonvpn failed validation, ProtonVPN toggle will prompt for a password."
 
-# install & apply the tokyonight GTK theme
 if [ -d /root/theme-src ]; then
     echo "Installing GTK theme: ${THEME_NAME} ..."
     mkdir -p "/home/${USERNAME}/.local/share/themes"
@@ -559,8 +486,8 @@ if [ -d /root/theme-src ]; then
         gsettings set org.gnome.desktop.interface font-name \"${THEME_FONT}\"
     '" || echo "WARNING: gsettings apply failed, set the theme manually in nwg-look later."
 
-    # export to gtk-3.0/gtk-4.0 settings.ini too, for apps that don't read gsettings directly
-    su - "${USERNAME}" -c "dbus-run-session -- nwg-look -x" \
+    echo "Exporting theme to legacy GTK settings.ini ..."
+su - "${USERNAME}" -c "dbus-run-session -- nwg-look -x" \
         || echo "WARNING: nwg-look -x export failed, run it manually later."
 
     echo "GTK theme '${THEME_NAME}' applied (font: ${THEME_FONT}, prefer-dark: on)."
@@ -574,22 +501,13 @@ su - "${USERNAME}" -c 'src=\$(mktemp -d) \
     && rm -rf "\$src"' \
     || echo "WARNING: ble.sh install failed, it will be retried automatically on first login."
 
-# usbmount: auto-mount USB drives on plug-in (udev-triggered, no daemon/session needed)
-if [ -f /etc/usbmount/usbmount.conf ]; then
-    sed -i '/^FS_MOUNTOPTIONS=/d' /etc/usbmount/usbmount.conf
-    echo 'FS_MOUNTOPTIONS="-fstype=vfat,gid=storage,dmask=0022,fmask=0133 -fstype=exfat,gid=storage,dmask=0022,fmask=0133 -fstype=ntfs,gid=storage,dmask=0022,fmask=0133"' \
-        >> /etc/usbmount/usbmount.conf
-else
-    echo "WARNING: /etc/usbmount/usbmount.conf not found, usbmount may not be installed correctly."
-fi
-
 rm -f /etc/sudoers.d/20-wheel-nopass
 
-# seatd for dwl
+echo "Enabling seatd service for dwl ..."
 ln -sf /etc/runit/sv/seatd /etc/runit/runsvdir/default/ 2>/dev/null || true
 usermod -aG seat "${USERNAME}"
 
-# grub: no boot delay, no menu flash
+echo "Configuring GRUB (no boot delay) ..."
 sed -i 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=0/' /etc/default/grub
 if grep -q '^GRUB_TIMEOUT_STYLE=' /etc/default/grub; then
     sed -i 's/^GRUB_TIMEOUT_STYLE=.*/GRUB_TIMEOUT_STYLE=hidden/' /etc/default/grub
@@ -604,38 +522,16 @@ else
 fi
 grub-mkconfig -o /boot/grub/grub.cfg
 
-# RESOLVCONF_RESET: hand DNS management back to resolvconf now that every
-# package install / git clone / makepkg call above is done. No static
-# nameservers here on purpose — resolv.conf is left for resolvconf to
-# generate on its own at real boot (from iwd on connect, or from
-# wg-quick when the ProtonVPN toggle is used). A raw \`cat > /etc/resolv.conf\`
-# would leave a file with no valid resolvconf signature, which makes
-# wg-quick's later \`resolvconf -a protonvpn\` call fail with "signature
-# mismatch".
+echo "Handing DNS management back to resolvconf ..."
 rm -f /etc/resolv.conf 2>/dev/null || true
 resolvconf -u 2>/dev/null || true
 EOF
 
 chmod +x /mnt/root/chroot-setup.sh
 
-# artix-chroot does NOT automatically give the target a working DNS
-# config. Without this, every network call inside chroot-setup.sh
-# (pacman -S, reflector, pacman-key key fetches) fails with "Could not
-# resolve host" even though the live environment's own network is fine.
-#
-# The base package sometimes ships /etc/resolv.conf as a symlink (e.g.
-# pointing at a stub-resolver path that doesn't exist yet in a freshly
-# basestrapped target) — a plain `cp` onto that can fail silently or
-# write through to nowhere. Remove whatever is there first, then copy,
-# then print the result so a failure is visible immediately instead of
-# surfacing 90 lines later as a mysterious DNS error.
 info "Copying live environment's DNS config into the target ..."
 mkdir -p /mnt/etc
 
-# self-heal: iwd/dhcpcd can bring up a working connection (which is why
-# basestrap above succeeded) without ever writing /etc/resolv.conf. If
-# that's the case here, don't just fail — write known-good public
-# resolvers so the rest of the install can proceed.
 if [ ! -s /etc/resolv.conf ]; then
     warn "Live environment's own /etc/resolv.conf is empty — writing fallback DNS (1.1.1.1 / 8.8.8.8)."
     printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n' > /etc/resolv.conf
