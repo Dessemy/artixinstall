@@ -1,7 +1,3 @@
--- lua/config/lazy.lua
--- Bootstraps lazy.nvim (installs it on first run) and loads every plugin
--- spec found under lua/plugins/*.lua
-
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not vim.uv.fs_stat(lazypath) then
   local out = vim.fn.system({
@@ -30,9 +26,9 @@ require("lazy").setup({
   },
   defaults = { lazy = true },
   install = { colorscheme = { "catppuccin-mocha", "habamax" } },
-  checker = { enabled = true, notify = false }, -- auto-check for plugin updates
+  checker = { enabled = true, notify = false },
   change_detection = { notify = false },
-  rocks = { enabled = false }, -- no plugin here needs luarocks; avoids the hererocks health error
+  rocks = { enabled = false },
   performance = {
     rtp = {
       disabled_plugins = {
