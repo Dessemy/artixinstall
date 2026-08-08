@@ -522,11 +522,10 @@ rm -f /root/.gpu-mode
 echo "Preparing dwl and desktop package list ..."
 cat > /home/${USERNAME}/dwl-install.sh <<'DWLSCRIPT'
 #!/bin/bash
-DWL_PKGS="foot wmenu mako cliphist swaybg wl-clipboard seatd seatd-runit
-xorg-xwayland
+DWL_PKGS="foot mako cliphist swaybg wl-clipboard seatd seatd-runit xorg-xwayland
 ttf-firacode-nerd noto-fonts noto-fonts-cjk noto-fonts-emoji yazi
 starship zoxide jq fd fzf fastfetch eza bat ripgrep imagemagick ffmpeg 7zip aria2
-ueberzugpp chafa ffmpegthumbnailer poppler mediainfo bluetui impala wiremix cava ttyper mpv rmpc mpc
+ueberzugpp chafa ffmpegthumbnailer poppler mediainfo bluetui impala wiremix cava mpv rmpc mpc
 brightnessctl playerctl libnotify gotop tlp tlp-rdw
 nwg-look dconf gsettings-desktop-schemas hyprpicker
 wireguard-tools grim slurp nodejs npm waylock github-cli
