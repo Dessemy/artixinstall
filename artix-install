@@ -354,7 +354,7 @@ rm -rf /root/dotfiles-src
 # a login shell (e.g. a TTY login) only reads ~/.bash_profile, so make it
 # pull in ~/.bashrc too
 cat > /home/${USERNAME}/.bash_profile <<'BASHPROFILE'
-[[ -f "$HOME/.bashrc" ]] && source "$HOME/.bashrc"
+[[ -f "\$HOME/.bashrc" ]] && source "\$HOME/.bashrc"
 BASHPROFILE
 chown ${USERNAME}:${USERNAME} /home/${USERNAME}/.bashrc /home/${USERNAME}/.bash_profile
 
@@ -512,7 +512,7 @@ if [ -d /root/dwl-src ]; then
     fi
 
     command -v dwl >/dev/null 2>&1 || { echo "ERROR: dwl command still not found on PATH after install."; exit 1; }
-    echo "dwl installed successfully: $(command -v dwl)"
+    echo "dwl installed successfully: \$(command -v dwl)"
 
     rm -rf /root/dwl-src
 else
@@ -604,10 +604,10 @@ else
     echo "WARNING: /root/theme-src not staged, tokyonight theme was not installed."
 fi
 
-su - "${USERNAME}" -c 'src=$(mktemp -d) \
-    && git clone --recursive --depth 1 https://github.com/akinomyoga/ble.sh.git "$src" \
-    && make -C "$src" install PREFIX="$HOME/.local" \
-    && rm -rf "$src"' \
+su - "${USERNAME}" -c 'src=\$(mktemp -d) \
+    && git clone --recursive --depth 1 https://github.com/akinomyoga/ble.sh.git "\$src" \
+    && make -C "\$src" install PREFIX="\$HOME/.local" \
+    && rm -rf "\$src"' \
     || echo "WARNING: ble.sh install failed, it will be retried automatically on first login."
 
 # usbmount: auto-mount USB drives on plug-in (udev-triggered, no daemon/session needed)
