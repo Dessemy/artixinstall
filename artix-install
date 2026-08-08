@@ -404,6 +404,47 @@ for pkg in \$GPU_PKGS; do
     pacman -S --needed --noconfirm "\$pkg" || echo "WARNING: failed to install \$pkg, skipping."
 done
 
+if [ "\$HAS_NVIDIA" -eq 1 ]; then
+    echo "Nvidia GPU detected, applying suspend/resume fixes ..."
+
+    echo "  -> setting NVreg_PreserveVideoMemoryAllocations ..."
+    cat > /etc/modprobe.d/nvidia-power-management.conf <<'NVIDIAPM'
+options nvidia NVreg_PreserveVideoMemoryAllocations=1 NVreg_TemporaryFilePath=/var/tmp
+NVIDIAPM
+
+    echo "  -> enabling nvidia_drm.modeset + fbdev on the kernel cmdline ..."
+    if grep -q 'GRUB_CMDLINE_LINUX_DEFAULT=' /etc/default/grub; then
+        if ! grep -q 'nvidia_drm.modeset=1' /etc/default/grub; then
+            sed -i 's/^\(GRUB_CMDLINE_LINUX_DEFAULT="[^"]*\)"/\1 nvidia_drm.modeset=1 nvidia_drm.fbdev=1"/' /etc/default/grub
+        fi
+    else
+        echo 'GRUB_CMDLINE_LINUX_DEFAULT="nvidia_drm.modeset=1 nvidia_drm.fbdev=1"' >> /etc/default/grub
+    fi
+
+    echo "  -> adding nvidia modules to mkinitcpio MODULES ..."
+    if grep -q '^MODULES=()' /etc/mkinitcpio.conf; then
+        sed -i 's/^MODULES=()/MODULES=(nvidia nvidia_modeset nvidia_uvm nvidia_drm)/' /etc/mkinitcpio.conf
+    elif grep -q '^MODULES=(' /etc/mkinitcpio.conf && ! grep -q 'nvidia_drm' /etc/mkinitcpio.conf; then
+        sed -i '/^MODULES=(/ s/)\$/ nvidia nvidia_modeset nvidia_uvm nvidia_drm)/' /etc/mkinitcpio.conf
+    fi
+    mkinitcpio -P || echo "WARNING: mkinitcpio -P failed, run it manually after install."
+
+    echo "  -> wiring elogind system-sleep hook (nvidia ships a systemd one, this repoints it for elogind) ..."
+    NVIDIA_SLEEP_HOOK="\$(pacman -Ql nvidia-utils 2>/dev/null | awk '/system-sleep/{print \$2}')"
+    if [ -n "\$NVIDIA_SLEEP_HOOK" ] && [ -f "\$NVIDIA_SLEEP_HOOK" ]; then
+        mkdir -p /usr/lib/elogind/system-sleep
+        ln -sf "\$NVIDIA_SLEEP_HOOK" /usr/lib/elogind/system-sleep/nvidia
+        echo "     linked \$NVIDIA_SLEEP_HOOK -> /usr/lib/elogind/system-sleep/nvidia"
+    else
+        echo "     WARNING: nvidia system-sleep hook not found in nvidia-utils, skipping (may need manual setup)."
+    fi
+fi
+
+echo "Disabling USB wakeup as a spurious-resume source (common cause of self-waking from suspend) ..."
+cat > /etc/udev/rules.d/99-disable-usb-wakeup.rules <<'UDEVWAKEUP'
+ACTION=="add", SUBSYSTEM=="usb", TEST=="power/wakeup", ATTR{power/wakeup}="disabled"
+UDEVWAKEUP
+
 if [ "\$GPU_COUNT" -ge 2 ] && [ "\$HAS_NVIDIA" -eq 1 ]; then
     echo "hybrid-nvidia" > /root/.gpu-mode
 elif [ "\$GPU_COUNT" -ge 2 ]; then
