@@ -1,0 +1,148 @@
+#!/bin/sh
+set -e
+
+APP_DIRS="/usr/share/applications $HOME/.local/share/applications"
+WALLPAPER_DIR="$HOME/Pictures/Wallpapers"
+CACHE_FILE="$HOME/.cache/current_wallpaper"
+WAYLOCK_OPTS="-init-color 0x1a1b26 -input-color 0x7aa2f7 -input-alt-color 0xad8ee6 -fail-color 0xf7768e"
+
+# ---- Apps ----
+
+list_apps() {
+    for dir in $APP_DIRS; do
+        [ -d "$dir" ] || continue
+        for f in "$dir"/*.desktop; do
+            [ -f "$f" ] || continue
+            grep -q '^NoDisplay=true' "$f" && continue
+
+            name=$(grep -m1 '^Name=' "$f" | cut -d'=' -f2-)
+            exec_raw=$(grep -m1 '^Exec=' "$f" | cut -d'=' -f2-)
+
+            [ -z "$name" ] && continue
+            [ -z "$exec_raw" ] && continue
+
+            exec_clean=$(echo "$exec_raw" | sed -E 's/%[fFuUdDnNickvm]//g')
+
+            printf '%s\t%s\n' "$name" "$exec_clean"
+        done
+    done | sort -u -t"$(printf '\t')" -k1,1
+}
+
+run_applauncher() {
+    chosen=$(list_apps | fzf \
+        --prompt='Launch > ' \
+        --height=100% \
+        --layout=reverse \
+        --border=sharp \
+        --with-nth=1 \
+        --delimiter='\t')
+
+    [ -z "$chosen" ] && return 0
+
+    cmd=$(printf '%s' "$chosen" | cut -f2-)
+    setsid -f sh -c "$cmd" >/dev/null 2>&1
+    sleep 0.3
+}
+
+# ---- System ----
+
+run_system() {
+    options="Lock\nLogout\nSuspend\nReboot\nShutdown"
+
+    chosen=$(printf "$options" | fzf \
+        --prompt='Power > ' \
+        --height=100% \
+        --layout=reverse \
+        --border=sharp)
+
+    [ -z "$chosen" ] && return 0
+
+    case "$chosen" in
+        Lock)
+            waylock $WAYLOCK_OPTS
+            ;;
+        Logout)
+            pkill -TERM -x dwl
+            ;;
+        Suspend)
+            waylock $WAYLOCK_OPTS &
+            sleep 1
+            loginctl suspend
+            ;;
+        Reboot)
+            loginctl reboot
+            ;;
+        Shutdown)
+            loginctl poweroff
+            ;;
+    esac
+}
+
+# ---- Wallpaper ----
+
+run_wallpaper() {
+    if [ ! -d "$WALLPAPER_DIR" ]; then
+        notify-send -u critical "Wallpaper Error" "Directory $WALLPAPER_DIR not found"
+        return 1
+    fi
+
+    cd "$WALLPAPER_DIR" || return 1
+    selected=$(find . -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.webp" \) \
+        | sed 's|^\./||' \
+        | fzf --preview 'chafa --format symbols --symbols block --stretch --size="${FZF_PREVIEW_COLUMNS}x$((FZF_PREVIEW_LINES-0))" {}' \
+        --border=sharp \
+        --preview-window=right:65%:wrap:border-sharp \
+        --prompt="  Wallpaper > ")
+
+    [ -z "$selected" ] && return 0
+
+    FULL_PATH="$WALLPAPER_DIR/$selected"
+
+    pkill -x swaybg 2>/dev/null || true
+    sleep 0.3
+
+    setsid -f swaybg -i "$FULL_PATH" -m fill >/dev/null 2>&1 &
+
+    echo "$FULL_PATH" > "$CACHE_FILE"
+
+    notify-send -i "$FULL_PATH" "Wallpaper Changed" "Now showing: $selected"
+}
+
+# ---- Update ----
+
+run_update() {
+    echo "==> Syncing mirrors and upgrading system (official repos + AUR) ..."
+    set +e
+    yay -Syu
+    status=$?
+    set -e
+
+    echo
+    if [ "$status" -eq 0 ]; then
+        echo "==> Update finished successfully."
+    else
+        echo "==> Update finished with errors (exit code $status). Check the output above."
+    fi
+
+    printf 'Press Enter to close...'
+    read -r _
+}
+
+# ---- Launcher ----
+
+options="Apps\nSystem\nWallpaper\nUpdate"
+
+chosen=$(printf "$options" | fzf \
+    --prompt='Go > ' \
+    --height=100% \
+    --layout=reverse \
+    --border=sharp)
+
+[ -z "$chosen" ] && exit 0
+
+case "$chosen" in
+    "Apps") run_applauncher ;;
+    "System") run_system ;;
+    "Wallpaper") run_wallpaper ;;
+    "Update") run_update ;;
+esac
