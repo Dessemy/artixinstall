@@ -1,9 +1,6 @@
--- lua/config/autocmds.lua
-
 local augroup = vim.api.nvim_create_augroup
 local autocmd = vim.api.nvim_create_autocmd
 
--- Highlight yanked text briefly
 augroup("HighlightYank", { clear = true })
 autocmd("TextYankPost", {
   group = "HighlightYank",
@@ -12,7 +9,6 @@ autocmd("TextYankPost", {
   end,
 })
 
--- Restore cursor position when reopening a file
 augroup("RestoreCursor", { clear = true })
 autocmd("BufReadPost", {
   group = "RestoreCursor",
@@ -25,7 +21,6 @@ autocmd("BufReadPost", {
   end,
 })
 
--- Auto-create missing directories on save
 augroup("AutoCreateDir", { clear = true })
 autocmd("BufWritePre", {
   group = "AutoCreateDir",
@@ -38,7 +33,6 @@ autocmd("BufWritePre", {
   end,
 })
 
--- Close certain filetypes with 'q'
 augroup("CloseWithQ", { clear = true })
 autocmd("FileType", {
   group = "CloseWithQ",
@@ -49,7 +43,6 @@ autocmd("FileType", {
   end,
 })
 
--- Trim trailing whitespace on save
 augroup("TrimWhitespace", { clear = true })
 autocmd("BufWritePre", {
   group = "TrimWhitespace",
@@ -61,7 +54,6 @@ autocmd("BufWritePre", {
   end,
 })
 
--- Resize splits evenly when the terminal window is resized
 augroup("ResizeSplits", { clear = true })
 autocmd("VimResized", {
   group = "ResizeSplits",
