@@ -1,7 +1,4 @@
--- lua/plugins/editor.lua
--- Small quality-of-life plugins grouped together.
 return {
-  -- Auto-close brackets/quotes
   {
     "windwp/nvim-autopairs",
     event = "InsertEnter",
@@ -9,13 +6,11 @@ return {
     config = function(_, opts)
       local autopairs = require("nvim-autopairs")
       autopairs.setup(opts)
-      -- Make autopairs and nvim-cmp play nicely together
       local cmp_autopairs = require("nvim-autopairs.completion.cmp")
       require("cmp").event:on("confirm_done", cmp_autopairs.on_confirm_done())
     end,
   },
 
-  -- Comment toggling with gc / gcc
   {
     "numToStr/Comment.nvim",
     keys = {
@@ -27,7 +22,6 @@ return {
     opts = {},
   },
 
-  -- Indentation guides
   {
     "lukas-reineke/indent-blankline.nvim",
     main = "ibl",
@@ -39,7 +33,6 @@ return {
     },
   },
 
-  -- Surround motions: ys, cs, ds
   {
     "kylechui/nvim-surround",
     version = "*",
@@ -47,12 +40,12 @@ return {
     opts = {},
   },
 
-  -- Popup that shows pending keybindings
   {
     "folke/which-key.nvim",
     event = "VeryLazy",
     opts = {
       preset = "modern",
+      win = { border = "single" },
     },
     keys = {
       {
@@ -65,7 +58,6 @@ return {
     },
   },
 
-  -- Better UI for messages, cmdline, popupmenu
   {
     "folke/noice.nvim",
     event = "VeryLazy",
@@ -83,10 +75,15 @@ return {
         command_palette = true,
         long_message_to_split = true,
       },
+      views = {
+        cmdline_popup = { border = { style = "single" } },
+        popupmenu = { border = { style = "single" } },
+        hover = { border = { style = "single" } },
+        confirm = { border = { style = "single" } },
+      },
     },
   },
 
-  -- Highlight and search todo comments (TODO, FIXME, HACK, NOTE)
   {
     "folke/todo-comments.nvim",
     event = { "BufReadPost", "BufNewFile" },
