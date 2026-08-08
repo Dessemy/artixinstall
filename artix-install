@@ -387,7 +387,7 @@ IWD
 # generate on its own (from iwd on connect, or from wg-quick when the
 # ProtonVPN toggle is used). A raw `cat > /etc/resolv.conf` would leave
 # a file with no valid resolvconf signature, which makes wg-quick's later
-# `resolvconf -a protonvpn` call fail with "signature mismatch"
+# \`resolvconf -a protonvpn\` call fail with "signature mismatch"
 rm -f /etc/resolv.conf 2>/dev/null || true
 resolvconf -u 2>/dev/null || true
 
@@ -656,11 +656,21 @@ chmod +x /mnt/root/chroot-setup.sh
 # surfacing 90 lines later as a mysterious DNS error.
 info "Copying live environment's DNS config into the target ..."
 mkdir -p /mnt/etc
+
+# self-heal: iwd/dhcpcd can bring up a working connection (which is why
+# basestrap above succeeded) without ever writing /etc/resolv.conf. If
+# that's the case here, don't just fail — write known-good public
+# resolvers so the rest of the install can proceed.
+if [ ! -s /etc/resolv.conf ]; then
+    warn "Live environment's own /etc/resolv.conf is empty — writing fallback DNS (1.1.1.1 / 8.8.8.8)."
+    printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n' > /etc/resolv.conf
+fi
+
 rm -f /mnt/etc/resolv.conf 2>/dev/null || true
 cp -L /etc/resolv.conf /mnt/etc/resolv.conf || error "Failed to copy resolv.conf into the target."
 info "Target /mnt/etc/resolv.conf now contains:"
 cat /mnt/etc/resolv.conf
-[ -s /mnt/etc/resolv.conf ] || error "resolv.conf was copied but is EMPTY — live environment's own DNS is not configured. Connect to network (iwctl / dhcpcd) before running this script."
+[ -s /mnt/etc/resolv.conf ] || error "resolv.conf is still empty after fallback — network may not actually be connected. Check with: ping -c2 1.1.1.1"
 
 artix-chroot /mnt /root/chroot-setup.sh
 rm /mnt/root/chroot-setup.sh
