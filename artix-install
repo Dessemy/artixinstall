@@ -348,6 +348,36 @@ pgrep -x mpd >/dev/null || mpd >/dev/null 2>&1
 MPDAUTOSTART
 fi
 
+if [ ! -f "/home/${USERNAME}/.config/aria2/aria2.conf" ]; then
+    mkdir -p "/home/${USERNAME}/.config/aria2"
+    touch "/home/${USERNAME}/.config/aria2/aria2.session"
+    cat > "/home/${USERNAME}/.config/aria2/aria2.conf" <<ARIA2CONF
+dir=/home/${USERNAME}/Downloads
+enable-rpc=true
+rpc-listen-all=false
+rpc-listen-port=6800
+rpc-allow-origin-all=true
+continue=true
+max-connection-per-server=16
+split=16
+min-split-size=1M
+max-concurrent-downloads=5
+auto-file-renaming=false
+daemon=false
+input-file=/home/${USERNAME}/.config/aria2/aria2.session
+save-session=/home/${USERNAME}/.config/aria2/aria2.session
+save-session-interval=60
+ARIA2CONF
+    chown -R ${USERNAME}:${USERNAME} "/home/${USERNAME}/.config/aria2"
+fi
+
+if ! grep -q 'pgrep -x aria2c' "/home/${USERNAME}/.bashrc" 2>/dev/null; then
+    cat >> "/home/${USERNAME}/.bashrc" <<'ARIA2AUTOSTART'
+
+pgrep -x aria2c >/dev/null || aria2c --conf-path="\$HOME/.config/aria2/aria2.conf" -D
+ARIA2AUTOSTART
+fi
+
 echo "Detecting and installing GPU drivers ..."
 GPU_INFO=\$(lspci -nnk | grep -Ei "VGA compatible controller|3D controller|Display controller")
 echo "Detected GPU(s):"
@@ -454,7 +484,7 @@ cat > /home/${USERNAME}/dwl-install.sh <<'DWLSCRIPT'
 DWL_PKGS="foot wmenu mako cliphist swaybg wl-clipboard seatd seatd-runit
 xorg-xwayland
 ttf-firacode-nerd noto-fonts noto-fonts-cjk noto-fonts-emoji yazi
-starship zoxide jq fd fzf fastfetch eza bat ripgrep imagemagick ffmpeg 7zip
+starship zoxide jq fd fzf fastfetch eza bat ripgrep imagemagick ffmpeg 7zip aria2
 ueberzugpp chafa ffmpegthumbnailer poppler mediainfo bluetui impala wiremix cava ttyper mpv rmpc mpc
 brightnessctl playerctl libnotify gotop tlp tlp-rdw
 nwg-look dconf gsettings-desktop-schemas hyprpicker
