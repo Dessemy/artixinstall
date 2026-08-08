@@ -189,7 +189,22 @@ config.unbind("<Ctrl-X>")
 config.unbind("<Ctrl-A>")
 
 config.bind(",m", "hint links spawn mpv {hint-url}")
-config.bind(",d", "hint links spawn fdm {hint-url}")
+
+# aria2 RPC downloader (daemon autostarted via .bashrc, listens on :6800)
+# ,d  -> download satu link
+# ,D  -> hint tetap terbuka (rapid), klik banyak link berturut-turut, Esc untuk keluar
+config.bind(
+    ",d",
+    'hint links spawn --detach curl -s http://localhost:6800/jsonrpc '
+    '-d \'{"jsonrpc":"2.0","id":"qb","method":"aria2.addUri",'
+    '"params":[["{hint-url}"]]}\''
+)
+config.bind(
+    ",D",
+    '--rapid hint links spawn --detach curl -s http://localhost:6800/jsonrpc '
+    '-d \'{"jsonrpc":"2.0","id":"qb","method":"aria2.addUri",'
+    '"params":[["{hint-url}"]]}\''
+)
 
 c.colors.completion.fg = base05
 c.colors.completion.odd.bg = base01
