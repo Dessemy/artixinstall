@@ -1,4 +1,3 @@
--- lua/plugins/neo-tree.lua
 return {
   {
     "nvim-neo-tree/neo-tree.nvim",
@@ -27,7 +26,7 @@ return {
       window = {
         width = 32,
         mappings = {
-          ["<space>"] = "none", -- avoid clobbering leader key inside the tree
+          ["<space>"] = "none",
         },
       },
       default_component_configs = {
