@@ -402,7 +402,9 @@ mkdir -p "/home/${USERNAME}/Music" \
     "/home/${USERNAME}/Music/playlists" \
     "/home/${USERNAME}/Music/database" \
     "/home/${USERNAME}/Downloads" \
-    "/home/${USERNAME}/Pictures/Wallpapers"
+    "/home/${USERNAME}/Pictures/Wallpapers" \
+    "/home/${USERNAME}/.local" \
+    "/home/${USERNAME}/.cache"
 chown -R ${USERNAME}:${USERNAME} \
     "/home/${USERNAME}/Music" \
     "/home/${USERNAME}/.local" \
