@@ -29,11 +29,60 @@ else
 fi
 info "Boot mode: $BOOT_MODE"
 
+info "Detecting storage devices ..."
+
+LIVE_SRC="$(findmnt -no SOURCE / 2>/dev/null || true)"
+LIVE_DISK=""
+if [ -n "$LIVE_SRC" ]; then
+    LIVE_PK="$(lsblk -no PKNAME "$LIVE_SRC" 2>/dev/null || true)"
+    [ -n "$LIVE_PK" ] && LIVE_DISK="/dev/${LIVE_PK}"
+fi
+# archiso/artixiso live media also mounts the actual USB partition here,
+# separately from the squashfs overlay seen at "/" above — check it too.
+BOOTMNT_SRC="$(findmnt -no SOURCE /run/archiso/bootmnt 2>/dev/null || true)"
+if [ -n "$BOOTMNT_SRC" ]; then
+    BOOTMNT_PK="$(lsblk -no PKNAME "$BOOTMNT_SRC" 2>/dev/null || true)"
+    [ -n "$BOOTMNT_PK" ] && LIVE_DISK="/dev/${BOOTMNT_PK}"
+fi
+
 echo
-lsblk -d -o NAME,SIZE,MODEL
+printf "%-16s %-8s %-8s %-10s %-20s %s\n" "DEVICE" "SIZE" "BUS" "TYPE" "MOUNTPOINT" "MODEL"
+while IFS= read -r line; do
+    eval "$line"
+    dev="/dev/${NAME}"
+    bus="${TRAN:-internal}"
+    mp="${MOUNTPOINT:--}"
+    tag=""
+    if [ "$bus" = "usb" ] || [ "${RM:-0}" = "1" ]; then
+        tag=" <-- USB/removable"
+    fi
+    if [ -n "$LIVE_DISK" ] && [ "$dev" = "$LIVE_DISK" ]; then
+        tag="$tag <-- LIVE INSTALL MEDIA, do not select"
+    fi
+    printf "%-16s %-8s %-8s %-10s %-20s %s%s\n" "$dev" "$SIZE" "$bus" "disk" "$mp" "$MODEL" "$tag"
+    while IFS= read -r pline; do
+        eval "$pline"
+        pdev="/dev/${NAME}"
+        pmp="${MOUNTPOINT:--}"
+        printf "  %-14s %-8s %-8s %-10s %-20s %s\n" "$pdev" "$SIZE" "-" "part" "$pmp" "$MODEL"
+    done < <(lsblk -lnP -o NAME,SIZE,MODEL,MOUNTPOINT "$dev" | tail -n +2)
+done < <(lsblk -dnP -o NAME,SIZE,MODEL,TRAN,RM,MOUNTPOINT)
 echo
+
 read -rp "Target disk (e.g. /dev/sda or /dev/nvme0n1): " DISK
 [ -b "$DISK" ] || error "Disk $DISK not found."
+
+if [ -n "$LIVE_DISK" ] && [ "$DISK" = "$LIVE_DISK" ]; then
+    error "Refusing to install onto $DISK — that is the live installation media."
+fi
+
+DISK_TRAN="$(lsblk -dno TRAN "$DISK" 2>/dev/null || true)"
+DISK_RM="$(lsblk -dno RM "$DISK" 2>/dev/null || true)"
+if [ "$DISK_TRAN" = "usb" ] || [ "$DISK_RM" = "1" ]; then
+    warn "$DISK looks like a USB/removable device."
+    read -rp "Really install to this removable device? Type 'YES' to continue: " USB_CONFIRM
+    [ "$USB_CONFIRM" = "YES" ] || error "Aborted."
+fi
 
 read -rp "Hostname [artix]: " HOSTNAME
 HOSTNAME=${HOSTNAME:-artix}
