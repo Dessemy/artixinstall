@@ -1,8 +1,7 @@
--- lua/plugins/treesitter.lua
 return {
   {
     "nvim-treesitter/nvim-treesitter",
-    branch = "master", -- pin: "main" is a rewrite without the .configs setup API used below
+    branch = "master",
     build = ":TSUpdate",
     event = { "BufReadPost", "BufNewFile" },
     dependencies = {
@@ -34,7 +33,7 @@ return {
         "yaml",
         "toml",
       },
-      auto_install = true, -- install parsers for new filetypes on the fly
+      auto_install = true,
       highlight = { enable = true },
       indent = { enable = true },
       incremental_selection = {
