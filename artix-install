@@ -301,6 +301,7 @@ ln -sf /etc/runit/sv/bluetoothd /etc/runit/runsvdir/default/ 2>/dev/null || true
 echo "Making sure NetworkManager can't hijack resolv.conf from iwd/resolvconf ..."
 rm -f /etc/runit/runsvdir/default/NetworkManager
 pkill NetworkManager 2>/dev/null || true
+pacman -Qi networkmanager >/dev/null 2>&1 && { pacman -Rns --noconfirm networkmanager || true; }
 
 usermod -aG audio,video,lp,storage "${USERNAME}"
 
@@ -435,7 +436,6 @@ visudo -cf /etc/sudoers.d/20-wheel-nopass || { echo "ERROR: nopass sudoers drop-
 
 su - "${USERNAME}" -c "cd ~ && git clone https://aur.archlinux.org/yay-bin.git && cd yay-bin && makepkg -si --noconfirm" \
     || echo "WARNING: yay install failed, you can retry manually later."
-rm -rf "/home/${USERNAME}/yay-bin"
 
 if [ -f /root/.gpu-mode ] && [ "\$(cat /root/.gpu-mode)" = "hybrid-nvidia" ]; then
     echo "Hybrid Nvidia GPU setup detected, installing envycontrol (GPU switcher) ..."
@@ -532,6 +532,8 @@ grub-mkconfig -o /boot/grub/grub.cfg
 
 echo "Handing DNS management back to resolvconf ..."
 rm -f /etc/runit/runsvdir/default/NetworkManager 2>/dev/null || true
+pkill NetworkManager 2>/dev/null || true
+pacman -Qi networkmanager >/dev/null 2>&1 && { pacman -Rns --noconfirm networkmanager || true; }
 rm -f /etc/resolv.conf 2>/dev/null || true
 resolvconf -u 2>/dev/null || true
 EOF
