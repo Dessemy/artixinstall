@@ -436,6 +436,7 @@ visudo -cf /etc/sudoers.d/20-wheel-nopass || { echo "ERROR: nopass sudoers drop-
 
 su - "${USERNAME}" -c "cd ~ && git clone https://aur.archlinux.org/yay-bin.git && cd yay-bin && makepkg -si --noconfirm" \
     || echo "WARNING: yay install failed, you can retry manually later."
+rm -rf "/home/${USERNAME}/yay-bin"
 
 if [ -f /root/.gpu-mode ] && [ "\$(cat /root/.gpu-mode)" = "hybrid-nvidia" ]; then
     echo "Hybrid Nvidia GPU setup detected, installing envycontrol (GPU switcher) ..."
