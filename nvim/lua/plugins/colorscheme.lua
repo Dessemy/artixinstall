@@ -1,12 +1,11 @@
--- lua/plugins/colorscheme.lua
 return {
   {
     "folke/tokyonight.nvim",
     name = "tokyonight",
-    lazy = false, -- default theme, load at startup
+    lazy = false,
     priority = 1000,
     opts = {
-      style = "night", -- night | storm | day | moon
+      style = "night",
       transparent = false,
       terminal_colors = true,
       styles = {
